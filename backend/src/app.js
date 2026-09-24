@@ -19,19 +19,37 @@ const usuarioRoutes = require('./routes/usuarioRoutes');
 
 const app = express();
 
-// Middleware de CORS estricto
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
+// Helper para normalizar URLs (eliminar espacios y barras finales)
+const normalizarUrl = (url) => {
+  if (!url || typeof url !== 'string') return '';
+  return url.trim().replace(/\/+$/, '');
+};
+
+// Orígenes por defecto para desarrollo local
+const defaultOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
-  'http://127.0.0.1:5173',
-  'https://el-aleman-ten.vercel.app'
-].filter(Boolean);
+  'http://127.0.0.1:5173'
+].map(normalizarUrl);
+
+// Orígenes parseados desde FRONTEND_URL (separados por coma)
+const envOrigins = (process.env.FRONTEND_URL || '')
+  .split(',')
+  .map(normalizarUrl)
+  .filter(Boolean);
+
+const allowedOrigins = Array.from(new Set([...defaultOrigins, ...envOrigins]));
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Permitir solicitudes sin header Origin (ej. servidor a servidor, herramientas local) o si coincide con los orígenes permitidos
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Permitir solicitudes sin header Origin (ej. servidor a servidor, cURL, Postman)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    const originNormalizado = normalizarUrl(origin);
+
+    if (allowedOrigins.includes(originNormalizado)) {
       callback(null, true);
     } else {
       const error = new Error('Acceso denegado por política de CORS');
