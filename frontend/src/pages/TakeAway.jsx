@@ -303,7 +303,7 @@ export default function TakeAway() {
   const [categoriaFiltro, setCategoriaFiltro] = useState('todas');
   const [busquedaItem, setBusquedaItem] = useState('');
   const [itemIdSeleccionado, setItemIdSeleccionado] = useState('');
-  const [cantidadItem, setCantidadItem] = useState(1);
+  const [cantidadItem, setCantidadItem] = useState('1');
   const [aclaracionItem, setAclaracionItem] = useState('');
 
   // Toast
@@ -376,32 +376,43 @@ export default function TakeAway() {
 
     const { pedido, medioPago } = modalCobroTakeAway;
     const targetId = pedido._id || pedido.id;
+    const numPed = pedido.numero || targetId?.slice?.(-4) || '---';
     const medioPagoFormateado = (medioPago === 'tarjeta' || medioPago === 'debito_credito')
       ? 'debito_credito'
       : (medioPago === 'transferencia' ? 'transferencia' : 'efectivo');
 
     setIsSubmittingCobro(true);
 
+    let res;
+    // 1. Petición principal al backend para cerrar y cobrar
     try {
-      await apiClient.post(`/pedidos-takeaway/${targetId}/cerrar`, {
+      res = await apiClient.post(`/pedidos-takeaway/${targetId}/cerrar`, {
         medioPago: medioPagoFormateado,
       });
-
-      const numPed = pedido.numero;
-      setModalCobroTakeAway(null);
-      setPedidoDetalleId(null);
-      showToast(`✅ Pedido Take Away #${numPed} marcado como Retirado y cobrado (${medioPagoFormateado})`);
-      await cargarDatosTakeAway();
     } catch (err) {
-      setModalCobroTakeAway(null);
-      setPedidoDetalleId(null);
       if (err.response?.status === 409) {
         alert('⚠️ No hay un turno de caja abierto.\n\nPor favor, ingresá al módulo de Caja y abrí un turno antes de cobrar el pedido.');
       } else {
         const errorMsg = err.response?.data?.mensaje || 'Error al cerrar pedido de takeaway';
         alert(errorMsg);
       }
+      setIsSubmittingCobro(false);
+      return;
+    }
+
+    // 2. Notificación de éxito inmediata tras respuesta 2xx
+    const montoTotalConfirmado = res?.data?.montoTotal ?? pedido.total ?? 0;
+    const medioPagoConfirmado = res?.data?.medioPago || medioPagoFormateado;
+    showToast(`✅ Pedido Take Away #${numPed} marcado como Retirado y cobrado ($${montoTotalConfirmado} - ${medioPagoConfirmado})`);
+
+    // 3. Pasos secundarios (actualización de modales y recarga)
+    try {
+      setModalCobroTakeAway(null);
+      setPedidoDetalleId(null);
       await cargarDatosTakeAway();
+    } catch (secErr) {
+      console.error('Cobro de Take Away registrado en backend, pero falló la actualización de la vista:', secErr);
+      showToast('Cobro registrado, no se pudo actualizar la vista');
     } finally {
       setIsSubmittingCobro(false);
     }
@@ -415,7 +426,7 @@ export default function TakeAway() {
     setModalEditarItem({
       item,
       index,
-      nuevaCantidad: item.cantidad || 1,
+      nuevaCantidad: (item.cantidad || 1).toString(),
       nuevaAclaracion: item.aclaracion || '',
       motivo: '',
       errorMotivo: '',
@@ -567,7 +578,7 @@ export default function TakeAway() {
       };
     }
 
-    const cant = Math.max(1, Number(cantidadItem) || 1);
+    const cant = Math.min(99, Math.max(1, parseInt(cantidadItem, 10) || 1));
 
     const nuevoItem = {
       id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
@@ -578,7 +589,7 @@ export default function TakeAway() {
 
     setCarritoItems((prev) => [...prev, nuevoItem]);
     setAclaracionItem('');
-    setCantidadItem(1);
+    setCantidadItem('1');
   };
 
   const handleQuitarItemCarrito = (itemId) => {
@@ -1600,13 +1611,25 @@ export default function TakeAway() {
                         Cant.
                       </label>
                       <input
-                        type="number"
-                        min="1"
-                        max="50"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         value={cantidadItem}
-                        onChange={(e) =>
-                          setCantidadItem(Math.max(1, Number(e.target.value) || 1))
-                        }
+                        onFocus={(e) => e.target.select()}
+                        onChange={(e) => {
+                          const cleaned = e.target.value.replace(/\D/g, '');
+                          if (cleaned === '') {
+                            setCantidadItem('');
+                          } else {
+                            const num = Math.min(99, parseInt(cleaned, 10));
+                            setCantidadItem(num.toString());
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!cantidadItem || parseInt(cantidadItem, 10) < 1) {
+                            setCantidadItem('1');
+                          }
+                        }}
                         className="w-full px-2.5 py-1.5 bg-white border-2 border-aleman-negro/25 rounded-sm text-sm text-aleman-negro font-bold text-center focus:border-aleman-verde"
                       />
                     </div>
@@ -2238,38 +2261,68 @@ export default function TakeAway() {
                   <button
                     type="button"
                     onClick={() =>
-                      setModalEditarItem((prev) => ({
-                        ...prev,
-                        nuevaCantidad: Math.max(1, Number(prev.nuevaCantidad || 1) - 1),
-                        errorCantidad: '',
-                      }))
+                      setModalEditarItem((prev) => {
+                        const curr = parseInt(prev.nuevaCantidad, 10) || 1;
+                        const next = Math.max(1, curr - 1);
+                        return {
+                          ...prev,
+                          nuevaCantidad: next.toString(),
+                          errorCantidad: '',
+                        };
+                      })
                     }
                     className="w-10 h-10 bg-aleman-crema hover:bg-aleman-dorado/30 text-aleman-negro font-bold text-lg rounded-sm border border-aleman-negro/30 flex items-center justify-center cursor-pointer transition-colors"
                   >
                     -
                   </button>
                   <input
-                    type="number"
-                    min="1"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={modalEditarItem.nuevaCantidad}
-                    onChange={(e) =>
-                      setModalEditarItem((prev) => ({
-                        ...prev,
-                        nuevaCantidad: e.target.value,
-                        errorCantidad: '',
-                      }))
-                    }
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      const cleaned = e.target.value.replace(/\D/g, '');
+                      if (cleaned === '') {
+                        setModalEditarItem((prev) => ({
+                          ...prev,
+                          nuevaCantidad: '',
+                          errorCantidad: '',
+                        }));
+                      } else {
+                        const num = Math.min(99, parseInt(cleaned, 10));
+                        setModalEditarItem((prev) => ({
+                          ...prev,
+                          nuevaCantidad: num.toString(),
+                          errorCantidad: '',
+                        }));
+                      }
+                    }}
+                    onBlur={() => {
+                      if (
+                        !modalEditarItem.nuevaCantidad ||
+                        parseInt(modalEditarItem.nuevaCantidad, 10) < 1
+                      ) {
+                        setModalEditarItem((prev) => ({
+                          ...prev,
+                          nuevaCantidad: '1',
+                        }));
+                      }
+                    }}
                     className="flex-1 px-3 py-2 text-center text-base font-bold bg-white border border-aleman-negro/30 rounded-sm text-aleman-negro focus:outline-hidden focus:border-aleman-negro focus:ring-1 focus:ring-aleman-negro"
-                    required
                   />
                   <button
                     type="button"
                     onClick={() =>
-                      setModalEditarItem((prev) => ({
-                        ...prev,
-                        nuevaCantidad: Number(prev.nuevaCantidad || 1) + 1,
-                        errorCantidad: '',
-                      }))
+                      setModalEditarItem((prev) => {
+                        const curr = parseInt(prev.nuevaCantidad, 10) || 1;
+                        const next = Math.min(99, curr + 1);
+                        return {
+                          ...prev,
+                          nuevaCantidad: next.toString(),
+                          errorCantidad: '',
+                        };
+                      })
                     }
                     className="w-10 h-10 bg-aleman-crema hover:bg-aleman-dorado/30 text-aleman-negro font-bold text-lg rounded-sm border border-aleman-negro/30 flex items-center justify-center cursor-pointer transition-colors"
                   >
@@ -2286,7 +2339,7 @@ export default function TakeAway() {
                   <span className="font-bold text-aleman-negro">
                     {formatCurrency(
                       modalEditarItem.item.precioUnitario *
-                        (Number(modalEditarItem.nuevaCantidad) || 0)
+                        (parseInt(modalEditarItem.nuevaCantidad, 10) || 0)
                     )}
                   </span>
                 </div>

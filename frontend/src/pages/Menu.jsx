@@ -289,7 +289,7 @@ export default function Menu() {
             Gestión de Menú
           </h1>
           <p className="text-base text-aleman-negro/70">
-            Administrá los platos, bebidas, recetas y categorías de tu cervecería & pizzería
+            Administrá los platos, bebidas, recetas y categorías de tu pizzería
           </p>
         </div>
 

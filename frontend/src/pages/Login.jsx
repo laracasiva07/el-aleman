@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
+import Logo from '../components/Logo';
 
 export default function Login() {
   const [usuario, setUsuario] = useState('');
@@ -45,13 +46,15 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-aleman-verde p-4 font-body">
       <div className="w-full max-w-md bg-aleman-hueso rounded-2xl border-4 border-aleman-dorado p-8 text-aleman-negro shadow-2xs">
-        <div className="text-center mb-8">
-          <span className="text-4xl mb-2 inline-block">🍺</span>
+        <div className="text-center mb-8 flex flex-col items-center">
+          <div className="mb-3 flex justify-center">
+            <Logo size={96} className="shadow-md border-2 border-aleman-dorado/40" />
+          </div>
           <h1 className="text-3xl font-display font-bold uppercase tracking-wider text-aleman-negro">
             EL ALEMÁN
           </h1>
           <p className="text-xs font-semibold text-aleman-rojo uppercase tracking-widest mt-0.5">
-            Gastronomía & Cervecería — Sistema de Gestión
+            Pizzería — Sistema de Gestión
           </p>
         </div>
 

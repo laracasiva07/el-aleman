@@ -211,7 +211,7 @@ export default function PedidosSalon() {
   const [categoriaFiltro, setCategoriaFiltro] = useState('todas');
   const [busquedaItem, setBusquedaItem] = useState('');
   const [itemIdSeleccionado, setItemIdSeleccionado] = useState('');
-  const [cantidadItem, setCantidadItem] = useState(1);
+  const [cantidadItem, setCantidadItem] = useState('1');
   const [aclaracionItem, setAclaracionItem] = useState('');
 
   // Modales de modificación de ítems de comanda
@@ -855,7 +855,7 @@ export default function PedidosSalon() {
     }
 
     const prodId = prodEncontrado._id || prodEncontrado.id;
-    const cantNum = Math.max(1, Number(cantidadItem) || 1);
+    const cantNum = Math.min(99, Math.max(1, parseInt(cantidadItem, 10) || 1));
 
     try {
       const res = await apiClient.post(`/pedidos-salon/${pedidoActualId}/items`, {
@@ -890,7 +890,7 @@ export default function PedidosSalon() {
       );
 
       setAclaracionItem('');
-      setCantidadItem(1);
+      setCantidadItem('1');
       showToast(`+${cantNum} ${prodEncontrado.nombre} agregado al pedido`);
     } catch (err) {
       showToast(err.response?.data?.mensaje || 'Error al agregar ítem al pedido');
@@ -919,7 +919,7 @@ export default function PedidosSalon() {
   const handleAbrirModalEditar = (item) => {
     setModalEditarItem({
       item,
-      nuevaCantidad: item.cantidad || 1,
+      nuevaCantidad: (item.cantidad || 1).toString(),
       nuevaAclaracion: item.aclaracion || '',
       motivo: '',
       errorMotivo: '',
@@ -1189,10 +1189,17 @@ export default function PedidosSalon() {
   };
 
   const handleConfirmarCobroYCierreMesa = async (e) => {
-    e.preventDefault();
+    e?.preventDefault();
     if (!modalCobroMesa || !pedidoActivo) return;
 
-    const { mesa, medioPago } = modalCobroMesa;
+    const { mesa, total, medioPago } = modalCobroMesa;
+    const numMesa = mesa.numero;
+    const itemsCierre = (mesa.pedido || []).map((it) => ({
+      nombre: it.nombre,
+      cantidad: it.cantidad,
+      precioUnitario: it.precioUnitario ?? it.precio,
+      aclaracion: it.aclaracion,
+    }));
 
     let medioPagoBackend = 'efectivo';
     if (medioPago === 'tarjeta' || medioPago === 'debito_credito') {
@@ -1201,19 +1208,30 @@ export default function PedidosSalon() {
       medioPagoBackend = 'transferencia';
     }
 
+    let res;
+    // 1. Petición principal al backend para cerrar y cobrar
     try {
-      await apiClient.post(`/pedidos-salon/${pedidoActivo._id}/cerrar`, {
+      res = await apiClient.post(`/pedidos-salon/${pedidoActivo._id}/cerrar`, {
         medioPago: medioPagoBackend,
       });
+    } catch (err) {
+      if (err.response?.status === 409) {
+        showToast('⚠️ No hay un turno de caja abierto');
+        alert('⚠️ No hay un turno de caja abierto.\n\nPor favor, ingresá al módulo de Caja y abrí un turno antes de cobrar el pedido.');
+      } else {
+        showToast(err.response?.data?.mensaje || 'Error al cerrar y cobrar la mesa');
+      }
+      return;
+    }
 
-      const numMesa = mesa.numero;
-      const itemsCierre = (mesa.pedido || []).map((it) => ({
-        nombre: it.nombre,
-        cantidad: it.cantidad,
-        precioUnitario: it.precioUnitario,
-        aclaracion: it.aclaracion,
-      }));
+    // 2. Notificación de éxito inmediata al recibir respuesta 2xx del backend
+    const montoTotalConfirmado = res.data?.montoTotal ?? total ?? 0;
+    const medioPagoConfirmado = res.data?.medioPago || medioPago;
 
+    showToast(`💰 Mesa ${numMesa} cobrada con ${medioPagoConfirmado} ($${montoTotalConfirmado}) y liberada con éxito`);
+
+    // 3. Pasos secundarios (actualización de UI, vista previa e impresión) en try/catch independiente
+    try {
       setModalCobroMesa(null);
       setMesaSeleccionadaId(null);
       setPedidoActivo(null);
@@ -1236,20 +1254,15 @@ export default function PedidosSalon() {
         mesaNumero: numMesa,
         mozo: user?.nombre || 'Mozo Salón',
         items: itemsCierre,
-        total: totalCobrado,
-        medioPago: medioPago,
+        total: montoTotalConfirmado,
+        medioPago: medioPagoConfirmado,
         vistaInicial: 'cliente',
       });
 
-      showToast(`💰 Mesa ${numMesa} cobrada con ${medioPago} y liberada con éxito`);
-      cargarDatosIniciales();
-    } catch (err) {
-      if (err.response?.status === 409) {
-        showToast('⚠️ No hay un turno de caja abierto');
-        alert('⚠️ No hay un turno de caja abierto.\n\nPor favor, ingresá al módulo de Caja y abrí un turno antes de cobrar el pedido.');
-      } else {
-        showToast(err.response?.data?.mensaje || 'Error al cerrar y cobrar la mesa');
-      }
+      await cargarDatosIniciales();
+    } catch (secErr) {
+      console.error('Cobro registrado en backend, pero ocurrió un error al actualizar la vista:', secErr);
+      showToast('Cobro registrado, no se pudo actualizar la vista');
     }
   };
 
@@ -2383,13 +2396,25 @@ export default function PedidosSalon() {
                         Cantidad
                       </label>
                       <input
-                        type="number"
-                        min="1"
-                        max="50"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         value={cantidadItem}
-                        onChange={(e) =>
-                          setCantidadItem(Math.max(1, Number(e.target.value) || 1))
-                        }
+                        onFocus={(e) => e.target.select()}
+                        onChange={(e) => {
+                          const cleaned = e.target.value.replace(/\D/g, '');
+                          if (cleaned === '') {
+                            setCantidadItem('');
+                          } else {
+                            const num = Math.min(99, parseInt(cleaned, 10));
+                            setCantidadItem(num.toString());
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!cantidadItem || parseInt(cantidadItem, 10) < 1) {
+                            setCantidadItem('1');
+                          }
+                        }}
                         className="w-full px-3 py-2 bg-white border-2 border-aleman-negro/25 rounded-sm text-sm text-aleman-negro font-bold text-center focus:border-aleman-verde"
                       />
                     </div>
@@ -3353,38 +3378,68 @@ export default function PedidosSalon() {
                   <button
                     type="button"
                     onClick={() =>
-                      setModalEditarItem((prev) => ({
-                        ...prev,
-                        nuevaCantidad: Math.max(1, Number(prev.nuevaCantidad || 1) - 1),
-                        errorCantidad: '',
-                      }))
+                      setModalEditarItem((prev) => {
+                        const curr = parseInt(prev.nuevaCantidad, 10) || 1;
+                        const next = Math.max(1, curr - 1);
+                        return {
+                          ...prev,
+                          nuevaCantidad: next.toString(),
+                          errorCantidad: '',
+                        };
+                      })
                     }
                     className="w-10 h-10 bg-aleman-crema hover:bg-aleman-dorado/30 text-aleman-negro font-bold text-lg rounded-sm border border-aleman-negro/30 flex items-center justify-center cursor-pointer transition-colors"
                   >
                     -
                   </button>
                   <input
-                    type="number"
-                    min="1"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={modalEditarItem.nuevaCantidad}
-                    onChange={(e) =>
-                      setModalEditarItem((prev) => ({
-                        ...prev,
-                        nuevaCantidad: e.target.value,
-                        errorCantidad: '',
-                      }))
-                    }
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      const cleaned = e.target.value.replace(/\D/g, '');
+                      if (cleaned === '') {
+                        setModalEditarItem((prev) => ({
+                          ...prev,
+                          nuevaCantidad: '',
+                          errorCantidad: '',
+                        }));
+                      } else {
+                        const num = Math.min(99, parseInt(cleaned, 10));
+                        setModalEditarItem((prev) => ({
+                          ...prev,
+                          nuevaCantidad: num.toString(),
+                          errorCantidad: '',
+                        }));
+                      }
+                    }}
+                    onBlur={() => {
+                      if (
+                        !modalEditarItem.nuevaCantidad ||
+                        parseInt(modalEditarItem.nuevaCantidad, 10) < 1
+                      ) {
+                        setModalEditarItem((prev) => ({
+                          ...prev,
+                          nuevaCantidad: '1',
+                        }));
+                      }
+                    }}
                     className="flex-1 px-3 py-2 text-center text-base font-bold bg-white border border-aleman-negro/30 rounded-sm text-aleman-negro focus:outline-hidden focus:border-aleman-negro focus:ring-1 focus:ring-aleman-negro"
-                    required
                   />
                   <button
                     type="button"
                     onClick={() =>
-                      setModalEditarItem((prev) => ({
-                        ...prev,
-                        nuevaCantidad: Number(prev.nuevaCantidad || 1) + 1,
-                        errorCantidad: '',
-                      }))
+                      setModalEditarItem((prev) => {
+                        const curr = parseInt(prev.nuevaCantidad, 10) || 1;
+                        const next = Math.min(99, curr + 1);
+                        return {
+                          ...prev,
+                          nuevaCantidad: next.toString(),
+                          errorCantidad: '',
+                        };
+                      })
                     }
                     className="w-10 h-10 bg-aleman-crema hover:bg-aleman-dorado/30 text-aleman-negro font-bold text-lg rounded-sm border border-aleman-negro/30 flex items-center justify-center cursor-pointer transition-colors"
                   >
@@ -3401,7 +3456,7 @@ export default function PedidosSalon() {
                   <span className="font-bold text-aleman-negro">
                     {formatCurrency(
                       modalEditarItem.item.precioUnitario *
-                        (Number(modalEditarItem.nuevaCantidad) || 0)
+                        (parseInt(modalEditarItem.nuevaCantidad, 10) || 0)
                     )}
                   </span>
                 </div>

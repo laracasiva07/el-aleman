@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
+import Logo from '../components/Logo';
 
 const navItems = [
   { name: 'Dashboard', path: '/', roles: ['dueno'] },
@@ -74,13 +75,10 @@ export default function MainLayout() {
     <div className="flex h-screen bg-aleman-crema font-body text-aleman-negro">
       {/* Desktop Fixed Sidebar (md:flex) */}
       <aside className="hidden md:flex w-64 bg-aleman-verde text-aleman-hueso flex-col flex-shrink-0 border-r-2 border-aleman-negro/40">
-        <div className="h-16 flex items-center gap-2.5 px-6 border-b-2 border-aleman-dorado bg-aleman-verde-dark font-display font-bold text-xl text-aleman-hueso tracking-wider">
-          <span className="text-xl">🍺</span>
+        <div className="h-20 flex items-center gap-3.5 px-4 border-b-2 border-aleman-dorado bg-aleman-verde-dark font-display font-bold text-aleman-hueso tracking-wider flex-shrink-0">
+          <Logo size={56} className="border border-aleman-dorado/40 shadow-sm" />
           <div className="leading-tight">
-            <span className="block text-lg">EL ALEMÁN</span>
-            <span className="block text-xs text-aleman-dorado font-body font-semibold tracking-widest uppercase">
-              Gastronomía
-            </span>
+            <span className="block text-xl font-display font-bold uppercase tracking-wider text-aleman-hueso">EL ALEMÁN</span>
           </div>
         </div>
         <nav className="flex-1 overflow-y-auto p-4 space-y-1">
@@ -104,14 +102,11 @@ export default function MainLayout() {
         }`}
         aria-label="Navegación móvil"
       >
-        <div className="h-16 flex items-center justify-between px-5 border-b-2 border-aleman-dorado bg-aleman-verde-dark font-display font-bold text-xl text-aleman-hueso tracking-wider flex-shrink-0">
+        <div className="h-18 flex items-center justify-between px-4 border-b-2 border-aleman-dorado bg-aleman-verde-dark font-display font-bold text-aleman-hueso tracking-wider flex-shrink-0">
           <div className="flex items-center gap-2.5 leading-tight">
-            <span className="text-xl">🍺</span>
+            <Logo size={44} className="border border-aleman-dorado/40 shadow-sm" />
             <div>
-              <span className="block text-lg">EL ALEMÁN</span>
-              <span className="block text-xs text-aleman-dorado font-body font-semibold tracking-widest uppercase">
-                Gastronomía
-              </span>
+              <span className="block text-base font-display font-bold uppercase tracking-wider text-aleman-hueso">EL ALEMÁN</span>
             </div>
           </div>
           <button

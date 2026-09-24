@@ -275,7 +275,7 @@ export default function ModalPreviaImpresion({ isOpen, onClose, datos }) {
                       EL ALEMÁN
                     </h2>
                     <p className="text-[10px] font-mono text-aleman-negro/80 uppercase tracking-widest mt-1">
-                      PIZZERÍA & RESTO-BAR
+                      PIZZERÍA
                     </p>
                     <p className="text-[9px] font-mono text-aleman-negro/60 mt-0.5">
                       Casa Central • Av. Corrientes 1234
