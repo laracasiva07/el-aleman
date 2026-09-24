@@ -77,6 +77,8 @@ const obtenerPedidosDeliveryActivos = async (req, res) => {
 // @access  Privado (dueño, encargado, mozo)
 const crearPedidoDelivery = async (req, res) => {
   try {
+    const { nombreCliente, telefono, direccionEntrega, items } = req.body || {};
+
     const telStr = telefono && typeof telefono === 'string' ? telefono.trim() : (telefono ? String(telefono).trim() : '');
     const nomStr = nombreCliente && typeof nombreCliente === 'string' ? nombreCliente.trim() : (nombreCliente ? String(nombreCliente).trim() : '');
     const dirStr = direccionEntrega && typeof direccionEntrega === 'string' ? direccionEntrega.trim() : (direccionEntrega ? String(direccionEntrega).trim() : '');
@@ -125,7 +127,7 @@ const crearPedidoDelivery = async (req, res) => {
     const nuevoPedido = await Pedido.create({
       tipo: 'delivery',
       clienteId: cliente._id,
-      direccionEntrega: direccionEntrega ? direccionEntrega.trim() : cliente.direccion,
+      direccionEntrega: dirStr || cliente.direccion,
       estadoDelivery: 'cocina',
       estadoPago: 'pendiente',
       items: itemsProcesados

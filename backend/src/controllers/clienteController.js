@@ -98,6 +98,8 @@ const actualizarCliente = async (req, res) => {
 // @access  Privado (dueño, encargado)
 const crearCliente = async (req, res) => {
   try {
+    const { nombre, telefono, direccion } = req.body || {};
+
     const telStr = telefono && typeof telefono === 'string' ? telefono.trim() : (telefono ? String(telefono).trim() : '');
     const nomStr = nombre && typeof nombre === 'string' ? nombre.trim() : (nombre ? String(nombre).trim() : '');
     const dirStr = direccion && typeof direccion === 'string' ? direccion.trim() : (direccion ? String(direccion).trim() : '');
