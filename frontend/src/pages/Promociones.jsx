@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useToast } from '../context/ToastContext';
 import apiClient from '../services/apiClient';
 
 const formatCurrency = (val) => {
@@ -108,6 +109,7 @@ const calcularDetallePromo = (
 };
 
 export default function Promociones() {
+  const { toast } = useToast();
   const [promociones, setPromociones] = useState([]);
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
@@ -265,13 +267,13 @@ export default function Promociones() {
     e.preventDefault();
 
     if (!formData.nombre.trim()) {
-      alert('Por favor ingresá un nombre para la promoción.');
+      toast.warning('Por favor ingresá un nombre para la promoción.');
       return;
     }
 
     const precioNum = Number(formData.precioCombo);
     if (isNaN(precioNum) || precioNum < 0) {
-      alert('Por favor ingresá un precio de combo válido mayor o igual a 0.');
+      toast.warning('Por favor ingresá un precio de combo válido mayor o igual a 0.');
       return;
     }
 
@@ -283,7 +285,7 @@ export default function Promociones() {
       }));
 
     if (itemsValidos.length === 0) {
-      alert('Debés incluir al menos un producto con cantidad válida en la promoción.');
+      toast.warning('Debés incluir al menos un producto con cantidad válida en la promoción.');
       return;
     }
 
@@ -301,9 +303,10 @@ export default function Promociones() {
       }
 
       handleCloseModal();
+      toast.success(editingPromoId ? 'Promoción actualizada con éxito' : 'Promoción creada con éxito');
       cargarDatos();
     } catch (err) {
-      alert(
+      toast.error(
         err.response?.data?.mensaje ||
           'Ocurrió un error al guardar la promoción en el servidor.'
       );
@@ -319,9 +322,10 @@ export default function Promociones() {
       await apiClient.patch(`/promociones/${id}/activo`, {
         activo: nuevoEstado,
       });
+      toast.success(nuevoEstado ? 'Promoción activada' : 'Promoción pausada');
       cargarDatos();
     } catch (err) {
-      alert(
+      toast.error(
         err.response?.data?.mensaje ||
           'Error al cambiar el estado de la promoción.'
       );

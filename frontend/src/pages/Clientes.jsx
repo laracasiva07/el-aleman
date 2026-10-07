@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../context/useAuth';
+import { useToast } from '../context/ToastContext';
 import apiClient from '../services/apiClient';
 import {
   mockClientes,
@@ -59,12 +60,11 @@ export default function Clientes() {
   const [editDirecciones, setEditDirecciones] = useState([]);
   const [direccionNuevaInput, setDireccionNuevaInput] = useState('');
 
-  // Toast
-  const [toastMessage, setToastMessage] = useState(null);
+  // Contexto de toast
+  const { toast } = useToast();
 
   const showToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
+    toast.success(msg);
   };
 
   // Abrir detalle y cargar historial de pedidos real desde el backend
@@ -140,12 +140,12 @@ export default function Clientes() {
     e.preventDefault();
 
     if (!nuevoNombre.trim()) {
-      alert('Por favor ingresá el nombre del cliente.');
+      toast.warning('Por favor ingresá el nombre del cliente.');
       return;
     }
 
     if (!nuevoTelefono.trim()) {
-      alert('Por favor ingresá el número de teléfono del cliente.');
+      toast.warning('Por favor ingresá el número de teléfono del cliente.');
       return;
     }
 
@@ -159,7 +159,7 @@ export default function Clientes() {
       setIsModalNuevoOpen(false);
       cargarClientes();
     } catch (err) {
-      alert(err.response?.data?.mensaje || 'Error al crear cliente');
+      toast.error(err.response?.data?.mensaje || 'Error al crear cliente');
     }
   };
 
@@ -193,12 +193,12 @@ export default function Clientes() {
     if (!clienteEditando) return;
 
     if (!editNombre.trim()) {
-      alert('Por favor ingresá un nombre.');
+      toast.warning('Por favor ingresá un nombre.');
       return;
     }
 
     if (!editTelefono.trim()) {
-      alert('Por favor ingresá un teléfono.');
+      toast.warning('Por favor ingresá un teléfono.');
       return;
     }
 
@@ -213,7 +213,7 @@ export default function Clientes() {
       setClienteEditando(null);
       cargarClientes();
     } catch (err) {
-      alert(err.response?.data?.mensaje || 'Error al actualizar datos del cliente');
+      toast.error(err.response?.data?.mensaje || 'Error al actualizar datos del cliente');
     }
   };
 
@@ -277,13 +277,6 @@ export default function Clientes() {
 
   return (
     <div className="space-y-6 font-body text-aleman-negro">
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed top-20 right-6 z-50 bg-aleman-verde text-aleman-hueso text-sm font-semibold px-4 py-2.5 rounded-sm shadow-md flex items-center gap-2 border-2 border-aleman-dorado animate-bounce">
-          <span>👥</span>
-          <span>{toastMessage}</span>
-        </div>
-      )}
 
       {/* ========================================================= */}
       {/* ENCABEZADO Y ACCIÓN NUEVO CLIENTE */}

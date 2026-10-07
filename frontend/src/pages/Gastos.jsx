@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../context/ToastContext';
 import apiClient from '../services/apiClient';
 
 const formatCurrency = (val) => {
@@ -48,21 +49,22 @@ export default function Gastos() {
   const [totalGastosDiarios, setTotalGastosDiarios] = useState(0);
   const [balanceData, setBalanceData] = useState(null);
 
-  // Estados de UI (Carga, Errores y Toast)
+  // Contexto de toast
+  const { toast } = useToast();
+
+  const showToast = (msg) => {
+    toast.success(msg);
+  };
+
+  // Estados de UI (Carga y Errores)
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [toastMessage, setToastMessage] = useState(null);
 
   // Modal para Gasto Fijo (Nuevo / Editar)
   const [isModalFijoOpen, setIsModalFijoOpen] = useState(false);
   const [gastoFijoEditando, setGastoFijoEditando] = useState(null);
   const [fijoNombre, setFijoNombre] = useState('');
   const [fijoMonto, setFijoMonto] = useState('');
-
-  const showToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
-  };
 
   // Carga de datos desde los endpoints reales
   const cargarGastos = useCallback(async () => {
@@ -142,13 +144,13 @@ export default function Gastos() {
     e.preventDefault();
 
     if (!fijoNombre.trim()) {
-      alert('Por favor ingresá el nombre del gasto fijo.');
+      toast.warning('Por favor ingresá el nombre del gasto fijo.');
       return;
     }
 
     const montoNum = Number(fijoMonto);
     if (isNaN(montoNum) || montoNum <= 0) {
-      alert('Por favor ingresá un monto mensual mayor a 0.');
+      toast.warning('Por favor ingresá un monto mensual mayor a 0.');
       return;
     }
 
@@ -171,7 +173,7 @@ export default function Gastos() {
       setIsModalFijoOpen(false);
       cargarGastos();
     } catch (err) {
-      alert(
+      toast.error(
         err.response?.data?.mensaje ||
           'Ocurrió un error al guardar el gasto fijo.'
       );
@@ -194,7 +196,7 @@ export default function Gastos() {
       );
       cargarGastos();
     } catch (err) {
-      alert(
+      toast.error(
         err.response?.data?.mensaje ||
           'Ocurrió un error al cambiar el estado del gasto fijo.'
       );
@@ -203,13 +205,6 @@ export default function Gastos() {
 
   return (
     <div className="space-y-6 font-body text-aleman-negro">
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed top-20 right-6 z-50 bg-aleman-verde text-aleman-hueso text-sm font-semibold px-4 py-2.5 rounded-sm shadow-md flex items-center gap-2 border-2 border-aleman-dorado animate-bounce">
-          <span>📊</span>
-          <span>{toastMessage}</span>
-        </div>
-      )}
 
       {/* ENCABEZADO PRINCIPAL Y ACCIONES */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
