@@ -6,8 +6,6 @@ import ModalPreviaImpresion from '../components/ModalPreviaImpresion';
 import {
   mockProductos,
   mockPromociones,
-  mockCategorias,
-  coincideCategoria,
   formatCurrency,
   registrarOActualizarCliente,
   agregarPedidoAlHistorialCliente,
@@ -283,8 +281,31 @@ export default function TakeAway() {
     }
   };
 
+  const [categorias, setCategorias] = useState([]);
+  const [cargandoCategorias, setCargandoCategorias] = useState(false);
+
+  const cargarCategorias = async () => {
+    setCargandoCategorias(true);
+    try {
+      const res = await apiClient.get('/categorias');
+      const listCat = (res.data?.categorias || []).map((c) => ({
+        id: c._id || c.id,
+        _id: c._id || c.id,
+        nombre: c.nombre,
+        tipo: c.tipo,
+      }));
+      setCategorias(listCat);
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'Error al cargar categorías');
+      setCategorias([]);
+    } finally {
+      setCargandoCategorias(false);
+    }
+  };
+
   useEffect(() => {
     cargarDatosTakeAway();
+    cargarCategorias();
   }, []);
 
   // Modales
@@ -741,12 +762,23 @@ export default function TakeAway() {
     };
   }, [pedidos]);
 
+  const categoriasConProductos = useMemo(() => {
+    const listaProdUsar = productos.length > 0 ? productos : mockProductos;
+    return categorias.filter((c) =>
+      listaProdUsar.some(
+        (p) => String(p.categoriaId?._id ?? p.categoriaId) === String(c._id || c.id)
+      )
+    );
+  }, [categorias, productos]);
+
   // Lista de items disponibles para el modal
   const itemsDisponibles = useMemo(() => {
     const listaProdUsar = productos.length > 0 ? productos : mockProductos;
     if (tipoSeleccionItem === 'productos') {
       return listaProdUsar.filter((p) => {
-        const matchCat = coincideCategoria(p, categoriaFiltro);
+        const matchCat =
+          categoriaFiltro === 'todas' ||
+          String(p.categoriaId?._id ?? p.categoriaId) === String(categoriaFiltro);
         const matchSearch =
           !busquedaItem.trim() ||
           p.nombre.toLowerCase().includes(busquedaItem.toLowerCase());
@@ -1547,7 +1579,7 @@ export default function TakeAway() {
                   />
 
                   {tipoSeleccionItem === 'productos' && (
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap items-center gap-1">
                       <button
                         type="button"
                         onClick={() => setCategoriaFiltro('todas')}
@@ -1559,20 +1591,27 @@ export default function TakeAway() {
                       >
                         Todas
                       </button>
-                      {mockCategorias.map((c) => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => setCategoriaFiltro(c.id)}
-                          className={`px-2 py-0.5 rounded-sm text-xs font-bold transition-colors cursor-pointer ${
-                            categoriaFiltro === c.id
-                              ? 'bg-aleman-verde text-aleman-hueso'
-                              : 'bg-white text-aleman-negro border border-aleman-negro/20 hover:bg-aleman-crema'
-                          }`}
-                        >
-                          {c.nombre}
-                        </button>
-                      ))}
+                      {cargandoCategorias ? (
+                        <span className="text-xs text-aleman-negro/50 italic px-1">Cargando categorías...</span>
+                      ) : (
+                        categoriasConProductos.map((c) => {
+                          const catIdStr = String(c._id || c.id);
+                          return (
+                            <button
+                              key={catIdStr}
+                              type="button"
+                              onClick={() => setCategoriaFiltro(catIdStr)}
+                              className={`px-2 py-0.5 rounded-sm text-xs font-bold transition-colors cursor-pointer ${
+                                categoriaFiltro === catIdStr
+                                  ? 'bg-aleman-verde text-aleman-hueso'
+                                  : 'bg-white text-aleman-negro border border-aleman-negro/20 hover:bg-aleman-crema'
+                              }`}
+                            >
+                              {c.nombre}
+                            </button>
+                          );
+                        })
+                      )}
                     </div>
                   )}
 

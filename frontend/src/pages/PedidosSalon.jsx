@@ -7,8 +7,6 @@ import ModalPreviaImpresion from '../components/ModalPreviaImpresion';
 import {
   mockProductos,
   mockPromociones,
-  mockCategorias,
-  coincideCategoria,
   formatCurrency,
 } from '../services/mockData';
 
@@ -327,8 +325,31 @@ export default function PedidosSalon() {
     }
   };
 
+  const [categorias, setCategorias] = useState([]);
+  const [cargandoCategorias, setCargandoCategorias] = useState(false);
+
+  const cargarCategorias = async () => {
+    setCargandoCategorias(true);
+    try {
+      const res = await apiClient.get('/categorias');
+      const listCat = (res.data?.categorias || []).map((c) => ({
+        id: c._id || c.id,
+        _id: c._id || c.id,
+        nombre: c.nombre,
+        tipo: c.tipo,
+      }));
+      setCategorias(listCat);
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'Error al cargar categorías');
+      setCategorias([]);
+    } finally {
+      setCargandoCategorias(false);
+    }
+  };
+
   useEffect(() => {
     cargarDatosIniciales();
+    cargarCategorias();
   }, []);
 
   // Handlers para arrastrar y posicionar libremente mesas en modo edición
@@ -1350,6 +1371,15 @@ export default function PedidosSalon() {
     };
   }, [mesaActual]);
 
+  const categoriasConProductos = useMemo(() => {
+    const listaProdUsar = productosApi.length > 0 ? productosApi : mockProductos;
+    return categorias.filter((c) =>
+      listaProdUsar.some(
+        (p) => String(p.categoriaId?._id ?? p.categoriaId) === String(c._id || c.id)
+      )
+    );
+  }, [categorias, productosApi]);
+
   // Lista de productos filtrados para el selector
   const itemsDisponibles = useMemo(() => {
     const listaProductosBase = productosApi.length > 0 ? productosApi : mockProductos;
@@ -1366,7 +1396,9 @@ export default function PedidosSalon() {
           };
         })
         .filter((p) => {
-          const matchCat = coincideCategoria(p, categoriaFiltro);
+          const matchCat =
+            categoriaFiltro === 'todas' ||
+            String(p.categoriaId?._id ?? p.categoriaId) === String(categoriaFiltro);
           const matchSearch =
             !busquedaItem.trim() ||
             p.nombre.toLowerCase().includes(busquedaItem.toLowerCase());
@@ -2347,7 +2379,7 @@ export default function PedidosSalon() {
                   />
 
                   {tipoSeleccionItem === 'productos' && (
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap items-center gap-1">
                       <button
                         type="button"
                         onClick={() => setCategoriaFiltro('todas')}
@@ -2359,20 +2391,27 @@ export default function PedidosSalon() {
                       >
                         Todas
                       </button>
-                      {mockCategorias.map((c) => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => setCategoriaFiltro(c.id)}
-                          className={`px-2 py-1 rounded-sm text-xs font-bold transition-colors cursor-pointer ${
-                            categoriaFiltro === c.id
-                              ? 'bg-aleman-verde text-aleman-hueso'
-                              : 'bg-white text-aleman-negro border border-aleman-negro/20 hover:bg-aleman-crema'
-                          }`}
-                        >
-                          {c.nombre}
-                        </button>
-                      ))}
+                      {cargandoCategorias ? (
+                        <span className="text-xs text-aleman-negro/50 italic px-1">Cargando categorías...</span>
+                      ) : (
+                        categoriasConProductos.map((c) => {
+                          const catIdStr = String(c._id || c.id);
+                          return (
+                            <button
+                              key={catIdStr}
+                              type="button"
+                              onClick={() => setCategoriaFiltro(catIdStr)}
+                              className={`px-2 py-1 rounded-sm text-xs font-bold transition-colors cursor-pointer ${
+                                categoriaFiltro === catIdStr
+                                  ? 'bg-aleman-verde text-aleman-hueso'
+                                  : 'bg-white text-aleman-negro border border-aleman-negro/20 hover:bg-aleman-crema'
+                              }`}
+                            >
+                              {c.nombre}
+                            </button>
+                          );
+                        })
+                      )}
                     </div>
                   )}
                 </div>
