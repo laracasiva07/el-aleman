@@ -867,7 +867,7 @@ export default function Promociones() {
                   <input
                     type="number"
                     min="0"
-                    step="100"
+                    step="any"
                     value={formData.precioCombo}
                     onChange={(e) =>
                       setFormData({ ...formData, precioCombo: e.target.value })

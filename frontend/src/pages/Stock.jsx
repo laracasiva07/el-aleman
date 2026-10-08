@@ -1,5 +1,7 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import apiClient from '../services/apiClient';
+import { useConfirm } from '../context/ConfirmContext';
+import { useToast } from '../context/ToastContext';
 import { formatCurrency } from '../services/mockData';
 
 // Unidades de medida disponibles
@@ -54,12 +56,16 @@ export default function Stock() {
   const [ingredientes, setIngredientes] = useState([]);
   const [productos, setProductos] = useState([]);
 
-  // Notificación tipo toast / feedback
-  const [toastMessage, setToastMessage] = useState(null);
+  // Estado y candado de guardado para evitar doble envío
+  const [guardando, setGuardando] = useState(false);
+  const guardandoRef = useRef(false);
+
+  // Contextos de confirmación y toast
+  const { confirmar } = useConfirm();
+  const { toast } = useToast();
 
   const showToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
+    toast.success(msg);
   };
 
   // Carga inicial de backend (Ingredientes, Productos)
@@ -186,8 +192,12 @@ export default function Stock() {
   const handleSaveIngrediente = async (e) => {
     e.preventDefault();
 
+    if (guardandoRef.current || guardando) {
+      return;
+    }
+
     if (!formData.nombre.trim()) {
-      alert('Por favor ingresá un nombre para el ingrediente.');
+      toast.warning('Por favor ingresá un nombre para el ingrediente.');
       return;
     }
 
@@ -198,29 +208,32 @@ export default function Stock() {
     const umbBaj = Number(formData.umbralBajo);
 
     if (isNaN(cantComprada) || cantComprada <= 0) {
-      alert('La cantidad comprada debe ser mayor a 0.');
+      toast.warning('La cantidad comprada debe ser mayor a 0.');
       return;
     }
 
     if (isNaN(costoTotal) || costoTotal <= 0) {
-      alert('El costo total de compra debe ser mayor a $0.');
+      toast.warning('El costo total de compra debe ser mayor a $0.');
       return;
     }
 
     if (isNaN(stockAct) || stockAct < 0) {
-      alert('El stock actual no puede ser un número negativo.');
+      toast.warning('El stock actual no puede ser un número negativo.');
       return;
     }
 
     if (isNaN(umbCrit) || umbCrit < 0) {
-      alert('El umbral crítico debe ser 0 o mayor.');
+      toast.warning('El umbral crítico debe ser 0 o mayor.');
       return;
     }
 
     if (isNaN(umbBaj) || umbBaj < umbCrit) {
-      alert('El umbral bajo debe ser mayor o igual al umbral crítico.');
+      toast.warning('El umbral bajo debe ser mayor o igual al umbral crítico.');
       return;
     }
+
+    guardandoRef.current = true;
+    setGuardando(true);
 
     const payload = {
       nombre: formData.nombre.trim(),
@@ -243,7 +256,10 @@ export default function Stock() {
       handleCloseModal();
       cargarDatosStock();
     } catch (err) {
-      alert(err.response?.data?.mensaje || 'Error al guardar ingrediente');
+      toast.error(err.response?.data?.mensaje || 'Error al guardar ingrediente');
+    } finally {
+      guardandoRef.current = false;
+      setGuardando(false);
     }
   };
 
@@ -259,12 +275,12 @@ export default function Stock() {
     const costoNuevo = Number(compraData.costoTotal);
 
     if (isNaN(cantNueva) || cantNueva <= 0) {
-      alert('Ingresá una cantidad comprada válida mayor a 0.');
+      toast.warning('Ingresá una cantidad comprada válida mayor a 0.');
       return;
     }
 
     if (isNaN(costoNuevo) || costoNuevo <= 0) {
-      alert('Ingresá un costo total válido mayor a 0.');
+      toast.warning('Ingresá un costo total válido mayor a 0.');
       return;
     }
 
@@ -280,7 +296,7 @@ export default function Stock() {
       handleCloseModal();
       cargarDatosStock();
     } catch (err) {
-      alert(err.response?.data?.mensaje || 'Error al registrar la compra');
+      toast.error(err.response?.data?.mensaje || 'Error al registrar la compra');
     }
   };
 
@@ -290,11 +306,14 @@ export default function Stock() {
   // =========================================================
 
   const handleEliminarIngrediente = async (ing) => {
-    if (
-      window.confirm(
-        `¿Estás seguro de que deseas eliminar el ingrediente "${ing.nombre}"? Esta acción no se puede deshacer.`
-      )
-    ) {
+    const ok = await confirmar({
+      titulo: 'Eliminar Ingrediente',
+      mensaje: `¿Eliminar el ingrediente "${ing.nombre}"? Esta acción no se puede deshacer.`,
+      variante: 'peligro',
+      textoConfirmar: 'Eliminar',
+    });
+
+    if (ok) {
       try {
         await apiClient.delete(`/ingredientes/${ing.id}`);
         showToast(`Ingrediente "${ing.nombre}" eliminado con éxito`);
@@ -312,10 +331,10 @@ export default function Stock() {
               mensajeServidor: mensajeBackend,
             });
           } else {
-            alert(mensajeBackend);
+            toast.error(mensajeBackend);
           }
         } else {
-          alert('Error al eliminar ingrediente');
+          toast.error('Error al eliminar ingrediente');
         }
       }
     }
@@ -394,14 +413,6 @@ export default function Stock() {
 
   return (
     <div className="space-y-6 font-body text-aleman-negro">
-      {/* Toast de notificación rápida */}
-      {toastMessage && (
-        <div className="fixed top-20 right-6 z-50 bg-aleman-verde text-aleman-hueso text-sm font-semibold px-4 py-2.5 rounded-sm shadow-md flex items-center gap-2 border-2 border-aleman-dorado animate-bounce">
-          <span>✨</span>
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
       {/* ========================================================= */}
       {/* ENCABEZADO Y BOTÓN NUEVO INGREDIENTE */}
       {/* ========================================================= */}
@@ -807,8 +818,8 @@ export default function Stock() {
                     </label>
                     <input
                       type="number"
-                      step="1"
-                      min="1"
+                      step="any"
+                      min="0"
                       value={formData.costoCompra}
                       onChange={(e) =>
                         setFormData({
@@ -982,9 +993,12 @@ export default function Stock() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-sm font-bold uppercase tracking-wider text-aleman-hueso bg-aleman-rojo hover:bg-aleman-rojo-dark rounded-sm border border-aleman-negro/40 transition-colors cursor-pointer"
+                  disabled={guardando}
+                  className="px-5 py-2 text-sm font-bold uppercase tracking-wider text-aleman-hueso bg-aleman-rojo hover:bg-aleman-rojo-dark rounded-sm border border-aleman-negro/40 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {modalType === 'editar'
+                  {guardando
+                    ? 'Guardando...'
+                    : modalType === 'editar'
                     ? 'Guardar Cambios'
                     : 'Crear Ingrediente'}
                 </button>
@@ -1072,8 +1086,8 @@ export default function Stock() {
                   </label>
                   <input
                     type="number"
-                    step="1"
-                    min="1"
+                    step="any"
+                    min="0"
                     value={compraData.costoTotal}
                     onChange={(e) =>
                       setCompraData({

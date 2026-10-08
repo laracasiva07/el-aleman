@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import apiClient from '../services/apiClient';
+import { useConfirm } from '../context/ConfirmContext';
+import { useToast } from '../context/ToastContext';
 import {
   calcularCostoReceta,
   formatCurrency,
@@ -11,12 +13,18 @@ export default function Menu() {
   const [productos, setProductos] = useState([]);
   const [ingredientes, setIngredientes] = useState([]);
 
-  // Notificación tipo toast / feedback
-  const [toastMessage, setToastMessage] = useState(null);
+  // Estado y candado de guardado para evitar doble envío
+  const [guardando, setGuardando] = useState(false);
+  const guardandoRef = useRef(false);
+  const [guardandoCategoria, setGuardandoCategoria] = useState(false);
+  const guardandoCategoriaRef = useRef(false);
+
+  // Contextos de confirmación y toast
+  const { confirmar } = useConfirm();
+  const { toast } = useToast();
 
   const showToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
+    toast.success(msg);
   };
 
   // Carga inicial de backend
@@ -96,7 +104,12 @@ export default function Menu() {
   // Manejadores de Categorías
   const handleCrearCategoria = async (e) => {
     e.preventDefault();
+    if (guardandoCategoriaRef.current || guardandoCategoria) return;
+
     if (!nuevaCatNombre.trim()) return;
+
+    guardandoCategoriaRef.current = true;
+    setGuardandoCategoria(true);
 
     try {
       const res = await apiClient.post('/categorias', {
@@ -108,12 +121,25 @@ export default function Menu() {
       setNuevaCatTipo('comida');
       cargarDatosMenu();
     } catch (err) {
-      alert(err.response?.data?.mensaje || 'Error al crear la categoría');
+      toast.error(err.response?.data?.mensaje || 'Error al crear la categoría');
+    } finally {
+      guardandoCategoriaRef.current = false;
+      setGuardandoCategoria(false);
     }
   };
 
   const handleEliminarCategoria = async (id) => {
-    if (window.confirm('¿Seguro que deseas eliminar esta categoría?')) {
+    const cat = categorias.find((c) => c.id === id);
+    const nombreCat = cat ? cat.nombre : 'esta categoría';
+
+    const ok = await confirmar({
+      titulo: 'Eliminar Categoría',
+      mensaje: `¿Eliminar la categoría "${nombreCat}"? Esta acción no se puede deshacer.`,
+      variante: 'peligro',
+      textoConfirmar: 'Eliminar',
+    });
+
+    if (ok) {
       try {
         await apiClient.delete(`/categorias/${id}`);
         showToast('Categoría eliminada con éxito');
@@ -122,7 +148,7 @@ export default function Menu() {
         }
         cargarDatosMenu();
       } catch (err) {
-        alert(err.response?.data?.mensaje || 'Error al eliminar categoría');
+        toast.error(err.response?.data?.mensaje || 'Error al eliminar categoría');
       }
     }
   };
@@ -183,21 +209,28 @@ export default function Menu() {
   const handleSaveProduct = async (e) => {
     e.preventDefault();
 
+    if (guardandoRef.current || guardando) {
+      return;
+    }
+
     if (!formData.nombre.trim()) {
-      alert('Por favor ingresá un nombre para el producto.');
+      toast.warning('Por favor ingresá un nombre para el producto.');
       return;
     }
 
     const precioNum = Number(formData.precioVenta);
     if (isNaN(precioNum) || precioNum <= 0) {
-      alert('Por favor ingresá un precio de venta válido mayor a 0.');
+      toast.warning('Por favor ingresá un precio de venta válido mayor a 0.');
       return;
     }
 
     if (!formData.categoriaId) {
-      alert('Por favor seleccioná una categoría para el producto.');
+      toast.warning('Por favor seleccioná una categoría para el producto.');
       return;
     }
+
+    guardandoRef.current = true;
+    setGuardando(true);
 
     // Limpiar receta de ingredientes inválidos
     const recetaLimpia = formData.receta
@@ -226,18 +259,31 @@ export default function Menu() {
       handleCloseModal();
       cargarDatosMenu();
     } catch (err) {
-      alert(err.response?.data?.mensaje || 'Error al guardar el producto');
+      toast.error(err.response?.data?.mensaje || 'Error al guardar el producto');
+    } finally {
+      guardandoRef.current = false;
+      setGuardando(false);
     }
   };
 
   const handleEliminarProducto = async (id) => {
-    if (window.confirm('¿Seguro que deseas eliminar este producto?')) {
+    const prod = productos.find((p) => p.id === id);
+    const nombreProd = prod ? prod.nombre : 'este producto';
+
+    const ok = await confirmar({
+      titulo: 'Eliminar Producto',
+      mensaje: `¿Eliminar "${nombreProd}"? Esta acción no se puede deshacer.`,
+      variante: 'peligro',
+      textoConfirmar: 'Eliminar',
+    });
+
+    if (ok) {
       try {
         await apiClient.delete(`/productos/${id}`);
         showToast('Producto eliminado con éxito');
         cargarDatosMenu();
       } catch (err) {
-        alert(err.response?.data?.mensaje || 'Error al eliminar producto');
+        toast.error(err.response?.data?.mensaje || 'Error al eliminar producto');
       }
     }
   };
@@ -248,7 +294,7 @@ export default function Menu() {
       showToast(res.data?.mensaje || 'Disponibilidad actualizada');
       cargarDatosMenu();
     } catch (err) {
-      alert(err.response?.data?.mensaje || 'Error al cambiar disponibilidad');
+      toast.error(err.response?.data?.mensaje || 'Error al cambiar disponibilidad');
     }
   };
 
@@ -274,14 +320,6 @@ export default function Menu() {
 
   return (
     <div className="space-y-6 font-body text-aleman-negro">
-      {/* Toast de notificación rápida */}
-      {toastMessage && (
-        <div className="fixed top-20 right-6 z-50 bg-aleman-verde text-aleman-hueso text-sm font-semibold px-4 py-2.5 rounded-sm shadow-md flex items-center gap-2 border-2 border-aleman-dorado animate-bounce">
-          <span>✨</span>
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
       {/* Encabezado y Navegación de Pestañas */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -367,9 +405,16 @@ export default function Menu() {
 
               <button
                 type="submit"
-                className="w-full sm:w-auto px-5 py-2.5 bg-aleman-rojo hover:bg-aleman-rojo-dark text-aleman-hueso font-bold text-base rounded-sm border border-aleman-negro/40 transition-colors cursor-pointer flex items-center justify-center gap-1.5 uppercase tracking-wider"
+                disabled={guardandoCategoria}
+                className="w-full sm:w-auto px-5 py-2.5 bg-aleman-rojo hover:bg-aleman-rojo-dark text-aleman-hueso font-bold text-base rounded-sm border border-aleman-negro/40 transition-colors cursor-pointer flex items-center justify-center gap-1.5 uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <span>+</span> Agregar Categoría
+                {guardandoCategoria ? (
+                  'Guardando...'
+                ) : (
+                  <>
+                    <span>+</span> Agregar Categoría
+                  </>
+                )}
               </button>
             </form>
           </div>
@@ -764,7 +809,7 @@ export default function Menu() {
                   <input
                     type="number"
                     min="0"
-                    step="10"
+                    step="any"
                     value={formData.precioVenta}
                     onChange={(e) =>
                       setFormData({ ...formData, precioVenta: e.target.value })
@@ -1016,9 +1061,14 @@ export default function Menu() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-sm font-bold uppercase tracking-wider text-aleman-hueso bg-aleman-rojo hover:bg-aleman-rojo-dark rounded-sm border border-aleman-negro/40 transition-colors cursor-pointer"
+                  disabled={guardando}
+                  className="px-5 py-2 text-sm font-bold uppercase tracking-wider text-aleman-hueso bg-aleman-rojo hover:bg-aleman-rojo-dark rounded-sm border border-aleman-negro/40 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {editingProductId ? 'Guardar Cambios' : 'Crear Producto'}
+                  {guardando
+                    ? 'Guardando...'
+                    : editingProductId
+                    ? 'Guardar Cambios'
+                    : 'Crear Producto'}
                 </button>
               </div>
             </form>

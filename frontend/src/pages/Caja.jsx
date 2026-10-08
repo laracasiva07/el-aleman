@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../context/useAuth';
+import { useToast } from '../context/ToastContext';
 import apiClient from '../services/apiClient';
 import { formatCurrency } from '../services/mockData';
 
@@ -49,12 +50,11 @@ export default function Caja() {
   const [filtroMedioPago, setFiltroMedioPago] = useState('todos'); // 'todos' | 'efectivo' | 'debito_credito' | 'transferencia'
   const [busqueda, setBusqueda] = useState('');
 
-  // Toast
-  const [toastMessage, setToastMessage] = useState(null);
+  // Contexto de toast
+  const { toast } = useToast();
 
   const showToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
+    toast.success(msg);
   };
 
   // Cargar Turno Actual al montar o refrescar
@@ -138,7 +138,7 @@ export default function Caja() {
       showToast(`🔓 Turno de caja abierto con un fondo de ${formatCurrency(monto)}`);
     } catch (err) {
       const msg = err.response?.data?.mensaje || 'Error al abrir el turno de caja';
-      alert(msg);
+      toast.error(msg);
     }
   };
 
@@ -153,13 +153,13 @@ export default function Caja() {
     e.preventDefault();
 
     if (esEncargado && !movDescripcion.trim()) {
-      alert('Por favor ingresá el motivo o descripción del egreso (obligatorio para encargados).');
+      toast.warning('Por favor ingresá el motivo o descripción del egreso (obligatorio para encargados).');
       return;
     }
 
     const montoNum = Number(movMonto);
     if (!montoNum || montoNum <= 0) {
-      alert('Por favor ingresá un monto válido mayor a 0.');
+      toast.warning('Por favor ingresá un monto válido mayor a 0.');
       return;
     }
 
@@ -175,9 +175,9 @@ export default function Caja() {
       showToast(`💸 Egreso manual de ${formatCurrency(montoNum)} registrado`);
     } catch (err) {
       if (err.response?.status === 409) {
-        alert('⚠️ No hay un turno de caja abierto.');
+        toast.warning('⚠️ No hay un turno de caja abierto.');
       } else {
-        alert(err.response?.data?.mensaje || 'Error al registrar egreso manual');
+        toast.error(err.response?.data?.mensaje || 'Error al registrar egreso manual');
       }
     }
   };
@@ -195,7 +195,7 @@ export default function Caja() {
 
     const contadoNum = Number(efectivoContado);
     if (isNaN(contadoNum) || contadoNum < 0) {
-      alert('Por favor ingresá un monto contado válido mayor o igual a 0.');
+      toast.warning('Por favor ingresá un monto contado válido mayor o igual a 0.');
       return;
     }
 
@@ -221,7 +221,7 @@ export default function Caja() {
         cargarDesglose();
       }
     } catch (err) {
-      alert(err.response?.data?.mensaje || 'Error al cerrar el turno de caja');
+      toast.error(err.response?.data?.mensaje || 'Error al cerrar el turno de caja');
     }
   };
 
@@ -231,7 +231,7 @@ export default function Caja() {
       setTurnoDetalleSeleccionado(res.data);
       setIsModalDetalleTurnoOpen(true);
     } catch (err) {
-      alert(err.response?.data?.mensaje || 'Error al obtener detalle del turno');
+      toast.error(err.response?.data?.mensaje || 'Error al obtener detalle del turno');
     }
   };
 
@@ -282,13 +282,6 @@ export default function Caja() {
 
   return (
     <div className="space-y-6 font-body text-aleman-negro">
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed top-20 right-6 z-50 bg-aleman-verde text-aleman-hueso text-sm font-semibold px-4 py-2.5 rounded-sm shadow-md flex items-center gap-2 border-2 border-aleman-dorado animate-bounce">
-          <span>💵</span>
-          <span>{toastMessage}</span>
-        </div>
-      )}
 
       {/* ENCABEZADO PRINCIPAL */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 pb-2">
@@ -408,7 +401,7 @@ export default function Caja() {
                     <input
                       type="number"
                       min="0"
-                      step="100"
+                      step="any"
                       value={inputAperturaMonto}
                       onChange={(e) => setInputAperturaMonto(e.target.value)}
                       placeholder="50000"
@@ -965,8 +958,8 @@ export default function Caja() {
                 </label>
                 <input
                   type="number"
-                  min="1"
-                  step="100"
+                  min="0"
+                  step="any"
                   value={movMonto}
                   onChange={(e) => setMovMonto(e.target.value)}
                   placeholder="Ej: 3500"
@@ -1070,7 +1063,7 @@ export default function Caja() {
                 <input
                   type="number"
                   min="0"
-                  step="100"
+                  step="any"
                   value={efectivoContado}
                   onChange={(e) => setEfectivoContado(e.target.value)}
                   placeholder="Ingresá cuánto dinero contaste"

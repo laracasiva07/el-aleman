@@ -821,8 +821,8 @@ export default function Gastos() {
                 </label>
                 <input
                   type="number"
-                  min="1"
-                  step="1000"
+                  min="0"
+                  step="any"
                   value={fijoMonto}
                   onChange={(e) => setFijoMonto(e.target.value)}
                   placeholder="Ej: 300000"
