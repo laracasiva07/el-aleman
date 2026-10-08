@@ -1,6 +1,16 @@
 const Ingrediente = require('../models/Ingrediente');
 const Producto = require('../models/Producto');
 
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const normalizarTildesRegex = (str) => {
+  return str
+    .replace(/[aáàäâ]/gi, '[aáàäâ]')
+    .replace(/[eéèëê]/gi, '[eéèëê]')
+    .replace(/[iíìïî]/gi, '[iíìïî]')
+    .replace(/[oóòöô]/gi, '[oóòöô]')
+    .replace(/[uúùüû]/gi, '[uúùüû]');
+};
+
 // @desc    Obtener todos los ingredientes (con virtuals costoUnitario y estadoStock)
 // @route   GET /api/ingredientes
 // @access  Privado (Dueño)
@@ -58,6 +68,13 @@ const crearIngrediente = async (req, res) => {
       });
     }
 
+    const existeIngrediente = await Ingrediente.findOne({
+      nombre: { $regex: new RegExp(`^${normalizarTildesRegex(escapeRegex(nombre.trim()))}$`, 'i') }
+    });
+    if (existeIngrediente) {
+      return res.status(409).json({ mensaje: 'Ya existe un ingrediente con ese nombre' });
+    }
+
     const nuevoIngrediente = await Ingrediente.create({
       nombre: nombre.trim(),
       unidadMedida,
@@ -71,6 +88,9 @@ const crearIngrediente = async (req, res) => {
 
     res.status(201).json({ ingrediente: nuevoIngrediente });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({ mensaje: 'Ya existe un ingrediente con ese nombre' });
+    }
     res.status(500).json({ mensaje: 'Error al crear ingrediente', error: error.message });
   }
 };
@@ -98,6 +118,16 @@ const editarIngrediente = async (req, res) => {
       'sucursalId'
     ];
 
+    if (req.body.nombre) {
+      const existeOtro = await Ingrediente.findOne({
+        _id: { $ne: id },
+        nombre: { $regex: new RegExp(`^${normalizarTildesRegex(escapeRegex(req.body.nombre.trim()))}$`, 'i') }
+      });
+      if (existeOtro) {
+        return res.status(409).json({ mensaje: 'Ya existe un ingrediente con ese nombre' });
+      }
+    }
+
     camposPermitidos.forEach((campo) => {
       if (req.body[campo] !== undefined) {
         ingrediente[campo] = req.body[campo];
@@ -107,6 +137,9 @@ const editarIngrediente = async (req, res) => {
     await ingrediente.save();
     res.json({ ingrediente });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({ mensaje: 'Ya existe un ingrediente con ese nombre' });
+    }
     res.status(500).json({ mensaje: 'Error al actualizar ingrediente', error: error.message });
   }
 };

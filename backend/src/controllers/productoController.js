@@ -2,6 +2,16 @@ const Producto = require('../models/Producto');
 const Categoria = require('../models/Categoria');
 const Ingrediente = require('../models/Ingrediente');
 
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const normalizarTildesRegex = (str) => {
+  return str
+    .replace(/[aáàäâ]/gi, '[aáàäâ]')
+    .replace(/[eéèëê]/gi, '[eéèëê]')
+    .replace(/[iíìïî]/gi, '[iíìïî]')
+    .replace(/[oóòöô]/gi, '[oóòöô]')
+    .replace(/[uúùüû]/gi, '[uúùüû]');
+};
+
 // @desc    Obtener todos los productos (con populate de categoría e ingredientes de la receta)
 // @route   GET /api/productos
 // @access  Privado (Dueño)
@@ -131,6 +141,16 @@ const crearProducto = async (req, res) => {
       return res.status(400).json({ mensaje: 'La categoría especificada no existe' });
     }
 
+    // Validar si ya existe un producto con el mismo nombre en la misma categoría
+    const productoExistente = await Producto.findOne({
+      nombre: { $regex: new RegExp(`^${normalizarTildesRegex(escapeRegex(nombre.trim()))}$`, 'i') },
+      categoriaId
+    });
+
+    if (productoExistente) {
+      return res.status(409).json({ mensaje: 'Ya existe un producto con ese nombre en esa categoría' });
+    }
+
     // Validar receta si se proporciona
     if (receta && Array.isArray(receta)) {
       for (const item of receta) {
@@ -159,6 +179,9 @@ const crearProducto = async (req, res) => {
 
     res.status(201).json({ producto: productoPoblado });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({ mensaje: 'Ya existe un producto con ese nombre en esa categoría' });
+    }
     res.status(500).json({ mensaje: 'Error al crear el producto', error: error.message });
   }
 };
@@ -176,12 +199,26 @@ const editarProducto = async (req, res) => {
       return res.status(404).json({ mensaje: 'Producto no encontrado' });
     }
 
+    const nuevoNombre = (nombre !== undefined && nombre.trim() ? nombre : producto.nombre).trim();
+    const nuevaCategoriaId = categoriaId !== undefined ? categoriaId : producto.categoriaId;
+
     if (categoriaId) {
       const categoriaExiste = await Categoria.findById(categoriaId);
       if (!categoriaExiste) {
         return res.status(400).json({ mensaje: 'La categoría especificada no existe' });
       }
       producto.categoriaId = categoriaId;
+    }
+
+    // Validar si ya existe otro producto con el mismo nombre en la misma categoría
+    const productoExistente = await Producto.findOne({
+      _id: { $ne: id },
+      nombre: { $regex: new RegExp(`^${normalizarTildesRegex(escapeRegex(nuevoNombre))}$`, 'i') },
+      categoriaId: nuevaCategoriaId
+    });
+
+    if (productoExistente) {
+      return res.status(409).json({ mensaje: 'Ya existe un producto con ese nombre en esa categoría' });
     }
 
     if (receta && Array.isArray(receta)) {
@@ -210,6 +247,9 @@ const editarProducto = async (req, res) => {
 
     res.json({ producto: productoActualizado });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({ mensaje: 'Ya existe un producto con ese nombre en esa categoría' });
+    }
     res.status(500).json({ mensaje: 'Error al editar el producto', error: error.message });
   }
 };

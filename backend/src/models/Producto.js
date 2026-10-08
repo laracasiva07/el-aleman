@@ -46,4 +46,9 @@ const productoSchema = new mongoose.Schema(
   }
 );
 
+productoSchema.index(
+  { categoriaId: 1, nombre: 1 },
+  { unique: true, collation: { locale: 'es', strength: 2 } }
+);
+
 module.exports = mongoose.model('Producto', productoSchema);

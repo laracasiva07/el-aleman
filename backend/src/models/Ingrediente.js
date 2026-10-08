@@ -65,4 +65,9 @@ ingredienteSchema.virtual('estadoStock').get(function () {
   return 'normal';
 });
 
+ingredienteSchema.index(
+  { nombre: 1 },
+  { unique: true, collation: { locale: 'es', strength: 2 } }
+);
+
 module.exports = mongoose.model('Ingrediente', ingredienteSchema);

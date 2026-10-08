@@ -1,6 +1,16 @@
 const Categoria = require('../models/Categoria');
 const Producto = require('../models/Producto');
 
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const normalizarTildesRegex = (str) => {
+  return str
+    .replace(/[aáàäâ]/gi, '[aáàäâ]')
+    .replace(/[eéèëê]/gi, '[eéèëê]')
+    .replace(/[iíìïî]/gi, '[iíìïî]')
+    .replace(/[oóòöô]/gi, '[oóòöô]')
+    .replace(/[uúùüû]/gi, '[uúùüû]');
+};
+
 // @desc    Obtener todas las categorías
 // @route   GET /api/categorias
 // @access  Privado (Dueño)
@@ -24,9 +34,11 @@ const crearCategoria = async (req, res) => {
       return res.status(400).json({ mensaje: 'Los campos nombre y tipo son obligatorios' });
     }
 
-    const existeCategoria = await Categoria.findOne({ nombre: nombre.trim() });
+    const existeCategoria = await Categoria.findOne({
+      nombre: { $regex: new RegExp(`^${normalizarTildesRegex(escapeRegex(nombre.trim()))}$`, 'i') }
+    });
     if (existeCategoria) {
-      return res.status(400).json({ mensaje: 'Ya existe una categoría con ese nombre' });
+      return res.status(409).json({ mensaje: 'Ya existe una categoría con ese nombre' });
     }
 
     const nuevaCategoria = await Categoria.create({
@@ -36,6 +48,9 @@ const crearCategoria = async (req, res) => {
 
     res.status(201).json({ categoria: nuevaCategoria });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({ mensaje: 'Ya existe una categoría con ese nombre' });
+    }
     res.status(500).json({ mensaje: 'Error al crear la categoría', error: error.message });
   }
 };
@@ -55,11 +70,11 @@ const editarCategoria = async (req, res) => {
 
     if (nombre) {
       const existeOtra = await Categoria.findOne({
-        nombre: nombre.trim(),
-        _id: { $ne: id }
+        _id: { $ne: id },
+        nombre: { $regex: new RegExp(`^${normalizarTildesRegex(escapeRegex(nombre.trim()))}$`, 'i') }
       });
       if (existeOtra) {
-        return res.status(400).json({ mensaje: 'Ya existe otra categoría con ese nombre' });
+        return res.status(409).json({ mensaje: 'Ya existe una categoría con ese nombre' });
       }
       categoria.nombre = nombre.trim();
     }
@@ -71,6 +86,9 @@ const editarCategoria = async (req, res) => {
     await categoria.save();
     res.json({ categoria });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({ mensaje: 'Ya existe una categoría con ese nombre' });
+    }
     res.status(500).json({ mensaje: 'Error al actualizar la categoría', error: error.message });
   }
 };

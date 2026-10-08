@@ -5,7 +5,6 @@ const categoriaSchema = new mongoose.Schema(
     nombre: {
       type: String,
       required: [true, 'El nombre de la categoría es obligatorio'],
-      unique: true,
       trim: true
     },
     tipo: {
@@ -20,6 +19,11 @@ const categoriaSchema = new mongoose.Schema(
   {
     timestamps: true
   }
+);
+
+categoriaSchema.index(
+  { nombre: 1 },
+  { unique: true, collation: { locale: 'es', strength: 2 } }
 );
 
 module.exports = mongoose.model('Categoria', categoriaSchema);

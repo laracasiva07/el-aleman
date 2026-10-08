@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext';
+import { ConfirmProvider } from './context/ConfirmContext';
 import RutaProtegida from './components/RutaProtegida';
 import Login from './pages/Login';
 import MainLayout from './layouts/MainLayout';
@@ -19,7 +21,9 @@ import Usuarios from './pages/Usuarios';
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <ToastProvider>
+        <ConfirmProvider>
+          <BrowserRouter>
         <Routes>
           {/* Ruta pública */}
           <Route path="/login" element={<Login />} />
@@ -61,6 +65,8 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+        </ConfirmProvider>
+      </ToastProvider>
     </AuthProvider>
   );
 }
