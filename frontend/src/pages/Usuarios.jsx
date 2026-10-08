@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import apiClient from '../services/apiClient';
+import { useToast } from '../context/ToastContext';
 
 export default function Usuarios() {
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState('');
-  const [toastMessage, setToastMessage] = useState(null);
+  const { toast } = useToast();
 
   // Modales
   const [isModalNuevoOpen, setIsModalNuevoOpen] = useState(false);
@@ -33,8 +34,11 @@ export default function Usuarios() {
   const [errorPassword, setErrorPassword] = useState('');
 
   const showToast = (msg, tipo = 'exito') => {
-    setToastMessage({ texto: msg, tipo });
-    setTimeout(() => setToastMessage(null), 3500);
+    if (tipo === 'error' || tipo === 'danger') {
+      toast.error(msg);
+    } else {
+      toast.success(msg);
+    }
   };
 
   // Cargar usuarios desde backend
@@ -229,20 +233,6 @@ export default function Usuarios() {
 
   return (
     <div className="space-y-6">
-      {/* Toast Alert */}
-      {toastMessage && (
-        <div
-          className={`fixed top-20 right-6 z-50 px-4 py-3 rounded-lg shadow-lg border-2 font-bold text-sm transition-all duration-300 flex items-center gap-2 ${
-            toastMessage.tipo === 'error'
-              ? 'bg-red-100 text-red-900 border-red-500'
-              : 'bg-emerald-100 text-emerald-900 border-emerald-500'
-          }`}
-        >
-          <span>{toastMessage.tipo === 'error' ? '⚠️' : '✅'}</span>
-          <span>{toastMessage.texto}</span>
-        </div>
-      )}
-
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-aleman-verde p-4 md:p-6 rounded-xl border-2 border-aleman-dorado shadow-md text-aleman-hueso">
         <div>
