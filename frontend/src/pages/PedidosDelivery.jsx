@@ -7,6 +7,7 @@ import {
   mockProductos,
   mockPromociones,
   mockCategorias,
+  coincideCategoria,
   formatCurrency,
 } from '../services/mockData';
 
@@ -232,13 +233,17 @@ export default function PedidosDelivery() {
 
       setPromociones(resPromos.data?.promociones || []);
 
-      const listProd = (resProd.data?.productos || []).map((p) => ({
-        id: p._id || p.id,
-        _id: p._id || p.id,
-        nombre: p.nombre,
-        precioVenta: p.precioVenta,
-        categoriaNombre: typeof p.categoriaId === 'object' ? p.categoriaId?.nombre : 'General',
-      }));
+      const listProd = (resProd.data?.productos || []).map((p) => {
+        const catObj = typeof p.categoriaId === 'object' && p.categoriaId !== null ? p.categoriaId : null;
+        return {
+          id: p._id || p.id,
+          _id: p._id || p.id,
+          nombre: p.nombre,
+          precioVenta: p.precioVenta,
+          categoriaId: catObj ? catObj._id : p.categoriaId,
+          categoriaNombre: catObj ? catObj.nombre : (p.categoriaNombre || 'General'),
+        };
+      });
       setProductos(listProd.length > 0 ? listProd : mockProductos);
 
       const listDel = (resDel.data?.pedidos || []).map((p, idx) => {
@@ -751,11 +756,7 @@ export default function PedidosDelivery() {
     const listaProdUsar = productos.length > 0 ? productos : mockProductos;
     if (tipoSeleccionItem === 'productos') {
       return listaProdUsar.filter((p) => {
-        const matchCat =
-          categoriaFiltro === 'todas' ||
-          p.categoriaId === categoriaFiltro ||
-          p.categoriaId?._id === categoriaFiltro ||
-          p.categoriaNombre === categoriaFiltro;
+        const matchCat = coincideCategoria(p, categoriaFiltro);
         const matchSearch =
           !busquedaItem.trim() ||
           p.nombre.toLowerCase().includes(busquedaItem.toLowerCase());
@@ -779,15 +780,13 @@ export default function PedidosDelivery() {
   }, [productos, promociones, tipoSeleccionItem, categoriaFiltro, busquedaItem]);
 
   useEffect(() => {
-    if (itemsDisponibles.length > 0) {
+    if (itemIdSeleccionado) {
       const existe = itemsDisponibles.some(
         (it) => String(it._id || it.id) === String(itemIdSeleccionado)
       );
       if (!existe) {
-        setItemIdSeleccionado(String(itemsDisponibles[0]._id || itemsDisponibles[0].id));
+        setItemIdSeleccionado('');
       }
-    } else {
-      setItemIdSeleccionado('');
     }
   }, [itemsDisponibles, itemIdSeleccionado]);
 
@@ -1557,15 +1556,26 @@ export default function PedidosDelivery() {
                       onChange={(e) => setItemIdSeleccionado(e.target.value)}
                       className="w-full px-3 py-2 bg-white border-2 border-aleman-negro/25 rounded-sm text-sm text-aleman-negro font-semibold focus:border-aleman-verde focus:outline-none"
                     >
-                      {itemsDisponibles.map((item) => {
-                        const val = String(item._id || item.id);
-                        return (
-                          <option key={val} value={val}>
-                            {item.nombre} —{' '}
-                            {formatCurrency(item.precioVenta || item.precioCombo)}
+                      {itemsDisponibles.length === 0 ? (
+                        <option value="" disabled>
+                          No hay productos en esta categoría
+                        </option>
+                      ) : (
+                        <>
+                          <option value="" disabled>
+                            Seleccionar ítem
                           </option>
-                        );
-                      })}
+                          {itemsDisponibles.map((item) => {
+                            const val = String(item._id || item.id);
+                            return (
+                              <option key={val} value={val}>
+                                {item.nombre} —{' '}
+                                {formatCurrency(item.precioVenta || item.precioCombo)}
+                              </option>
+                            );
+                          })}
+                        </>
+                      )}
                     </select>
                   </div>
 

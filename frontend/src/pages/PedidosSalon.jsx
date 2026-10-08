@@ -8,6 +8,7 @@ import {
   mockProductos,
   mockPromociones,
   mockCategorias,
+  coincideCategoria,
   formatCurrency,
 } from '../services/mockData';
 
@@ -851,8 +852,8 @@ export default function PedidosSalon() {
     }
 
     const prodEncontrado =
-      productosApi.find((p) => (p._id || p.id) === itemIdSeleccionado) ||
-      mockProductos.find((p) => p.id === itemIdSeleccionado);
+      productosApi.find((p) => String(p._id || p.id) === String(itemIdSeleccionado)) ||
+      mockProductos.find((p) => String(p.id) === String(itemIdSeleccionado));
 
     if (!prodEncontrado) {
       toast.warning('Por favor seleccioná un producto o promoción válido.');
@@ -1354,16 +1355,18 @@ export default function PedidosSalon() {
     const listaProductosBase = productosApi.length > 0 ? productosApi : mockProductos;
     if (tipoSeleccionItem === 'productos') {
       return listaProductosBase
-        .map((p) => ({
-          ...p,
-          id: p._id || p.id,
-          precioVenta: p.precioVenta ?? p.precio ?? 0,
-        }))
+        .map((p) => {
+          const catObj = typeof p.categoriaId === 'object' && p.categoriaId !== null ? p.categoriaId : null;
+          return {
+            ...p,
+            id: p._id || p.id,
+            categoriaId: catObj ? catObj._id : p.categoriaId,
+            categoriaNombre: catObj ? catObj.nombre : (p.categoriaNombre || p.categoria || 'General'),
+            precioVenta: p.precioVenta ?? p.precio ?? 0,
+          };
+        })
         .filter((p) => {
-          const matchCat =
-            categoriaFiltro === 'todas' ||
-            p.categoriaId === categoriaFiltro ||
-            p.categoria === categoriaFiltro;
+          const matchCat = coincideCategoria(p, categoriaFiltro);
           const matchSearch =
             !busquedaItem.trim() ||
             p.nombre.toLowerCase().includes(busquedaItem.toLowerCase());
@@ -1385,6 +1388,17 @@ export default function PedidosSalon() {
         }));
     }
   }, [tipoSeleccionItem, categoriaFiltro, busquedaItem, productosApi, promocionesApi]);
+
+  useEffect(() => {
+    if (itemIdSeleccionado) {
+      const existe = itemsDisponibles.some(
+        (it) => String(it._id || it.id) === String(itemIdSeleccionado)
+      );
+      if (!existe) {
+        setItemIdSeleccionado('');
+      }
+    }
+  }, [itemsDisponibles, itemIdSeleccionado]);
 
   // Filtrado de mesas para el plano
   const mesasFiltradas = useMemo(() => {
@@ -2377,12 +2391,26 @@ export default function PedidosSalon() {
                       onChange={(e) => setItemIdSeleccionado(e.target.value)}
                       className="w-full px-3 py-2 bg-white border-2 border-aleman-negro/25 rounded-sm text-sm text-aleman-negro font-semibold focus:border-aleman-verde focus:outline-none"
                     >
-                      {itemsDisponibles.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.nombre} —{' '}
-                          {formatCurrency(item.precioVenta || item.precioCombo)}
+                      {itemsDisponibles.length === 0 ? (
+                        <option value="" disabled>
+                          No hay productos en esta categoría
                         </option>
-                      ))}
+                      ) : (
+                        <>
+                          <option value="" disabled>
+                            Seleccionar ítem
+                          </option>
+                          {itemsDisponibles.map((item) => {
+                            const val = String(item._id || item.id);
+                            return (
+                              <option key={val} value={val}>
+                                {item.nombre} —{' '}
+                                {formatCurrency(item.precioVenta || item.precioCombo)}
+                              </option>
+                            );
+                          })}
+                        </>
+                      )}
                     </select>
                   </div>
 
