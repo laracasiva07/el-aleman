@@ -155,7 +155,7 @@ export default function Clientes() {
         telefono: nuevoTelefono.trim(),
         direccion: nuevaDireccion.trim(),
       });
-      showToast(`👤 Cliente "${nuevoNombre.trim()}" guardado con éxito`);
+      showToast(`Cliente "${nuevoNombre.trim()}" guardado con éxito`);
       setIsModalNuevoOpen(false);
       cargarClientes();
     } catch (err) {
@@ -209,7 +209,7 @@ export default function Clientes() {
         telefono: editTelefono.trim(),
         direccion: ultDir,
       });
-      showToast(`✏️ Datos de "${editNombre.trim()}" actualizados`);
+      showToast(`Datos de "${editNombre.trim()}" actualizados`);
       setClienteEditando(null);
       cargarClientes();
     } catch (err) {

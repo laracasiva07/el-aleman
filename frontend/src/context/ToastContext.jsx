@@ -62,7 +62,7 @@ export function ToastProvider({ children }) {
               role="alert"
               className={`pointer-events-auto p-3.5 border-2 rounded-sm shadow-md flex items-start gap-2.5 animate-modalEnter font-body text-sm ${estilo}`}
             >
-              <span className="text-base select-none shrink-0 mt-0.5">{icono}</span>
+              <span className="text-base select-none shrink-0 mt-0.5 leading-none">{icono}</span>
               <div className="flex-1 font-semibold break-words leading-snug whitespace-pre-line">
                 {t.mensaje}
               </div>

@@ -161,13 +161,13 @@ export default function Gastos() {
           nombre: fijoNombre.trim(),
           montoMensual: montoNum,
         });
-        showToast(`🏢 Gasto fijo "${fijoNombre.trim()}" actualizado correctamente`);
+        showToast(`Gasto fijo "${fijoNombre.trim()}" actualizado correctamente`);
       } else {
         await apiClient.post('/gastos/fijos', {
           nombre: fijoNombre.trim(),
           montoMensual: montoNum,
         });
-        showToast(`🏢 Gasto fijo "${fijoNombre.trim()}" creado con éxito`);
+        showToast(`Gasto fijo "${fijoNombre.trim()}" creado con éxito`);
       }
 
       setIsModalFijoOpen(false);
@@ -190,7 +190,7 @@ export default function Gastos() {
       });
 
       showToast(
-        `🏢 Gasto fijo "${gasto.nombre}" ${
+        `Gasto fijo "${gasto.nombre}" ${
           nuevoEstado ? 'reactivado' : 'dado de baja'
         }`
       );

@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, Fragment } from 'react';
 import { useAuth } from '../context/useAuth';
+import { useToast } from '../context/ToastContext';
 import apiClient from '../services/apiClient';
 import ModalPreviaImpresion from '../components/ModalPreviaImpresion';
 import {
@@ -315,12 +316,11 @@ export default function PedidosDelivery() {
   const [cantidadItem, setCantidadItem] = useState('1');
   const [aclaracionItem, setAclaracionItem] = useState('');
 
-  // Notificación toast
-  const [toastMessage, setToastMessage] = useState(null);
+  // Contexto de toast
+  const { toast } = useToast();
 
   const showToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
+    toast.info(msg);
   };
 
   // Pedido seleccionado para ver detalle
@@ -375,7 +375,7 @@ export default function PedidosDelivery() {
       );
       cargarDatosDelivery();
     } catch (err) {
-      alert(err.response?.data?.mensaje || 'Error al cambiar estado del delivery');
+      toast.error(err.response?.data?.mensaje || 'Error al cambiar estado del delivery');
     }
   };
 
@@ -404,9 +404,9 @@ export default function PedidosDelivery() {
       });
     } catch (err) {
       if (err.response?.status === 409) {
-        alert('⚠️ No hay un turno de caja abierto.\n\nPor favor, ingresá al módulo de Caja y abrí un turno antes de cobrar el pedido.');
+        toast.warning('No hay un turno de caja abierto.\n\nPor favor, ingresá al módulo de Caja y abrí un turno antes de cobrar el pedido.');
       } else {
-        alert(err.response?.data?.mensaje || 'Error al cerrar y cobrar pedido de delivery');
+        toast.error(err.response?.data?.mensaje || 'Error al cerrar y cobrar pedido de delivery');
       }
       return;
     }
@@ -414,7 +414,7 @@ export default function PedidosDelivery() {
     // 2. Notificación de éxito inmediata tras respuesta 2xx
     const montoTotalConfirmado = res.data?.montoTotal ?? pedido.total ?? 0;
     const medioPagoConfirmado = res.data?.medioPago || medioPagoBackend;
-    showToast(`✅ Pedido #${numPed} marcado como Entregado y cobrado ($${montoTotalConfirmado} - ${medioPagoConfirmado})`);
+    showToast(`Pedido #${numPed} marcado como Entregado y cobrado ($${montoTotalConfirmado} - ${medioPagoConfirmado})`);
 
     // 3. Pasos secundarios (actualización de modales y recarga)
     try {
@@ -484,13 +484,13 @@ export default function PedidosDelivery() {
           motivo: motivo.trim(),
         }
       );
-      showToast(`✏️ Ítem "${item.nombre}" actualizado.`);
+      showToast(`Ítem "${item.nombre}" actualizado.`);
       setModalEditarItem(null);
       cargarDatosDelivery();
     } catch (err) {
       const msg = err.response?.data?.mensaje || 'Error al editar ítem';
       setModalEditarItem((prev) => ({ ...prev, errorMotivo: msg }));
-      alert(msg);
+      toast.error(msg);
     }
   };
 
@@ -515,13 +515,13 @@ export default function PedidosDelivery() {
           data: { motivo: motivo.trim() },
         }
       );
-      showToast(`🗑️ Ítem "${item.nombre}" eliminado del pedido.`);
+      showToast(`Ítem "${item.nombre}" eliminado del pedido.`);
       setModalEliminarItem(null);
       cargarDatosDelivery();
     } catch (err) {
       const msg = err.response?.data?.mensaje || 'Error al eliminar ítem';
       setModalEliminarItem((prev) => ({ ...prev, errorMotivo: msg }));
-      alert(msg);
+      toast.error(msg);
     }
   };
 
@@ -555,7 +555,7 @@ export default function PedidosDelivery() {
         (p) => String(p._id || p.id) === String(itemIdSeleccionado)
       );
       if (!promo) {
-        alert('Seleccioná una promoción válida.');
+        toast.warning('Seleccioná una promoción válida.');
         return;
       }
       itemInfo = {
@@ -573,7 +573,7 @@ export default function PedidosDelivery() {
       );
 
       if (!prod) {
-        alert('Seleccioná un producto válido.');
+        toast.warning('Seleccioná un producto válido.');
         return;
       }
 
@@ -609,22 +609,22 @@ export default function PedidosDelivery() {
     e.preventDefault();
 
     if (!nuevoCliente.trim()) {
-      alert('Por favor ingresá el nombre del cliente.');
+      toast.warning('Por favor ingresá el nombre del cliente.');
       return;
     }
 
     if (!nuevoTelefono.trim()) {
-      alert('Por favor ingresá un número de teléfono de contacto.');
+      toast.warning('Por favor ingresá un número de teléfono de contacto.');
       return;
     }
 
     if (!nuevaDireccion.trim()) {
-      alert('Por favor ingresá la dirección de entrega.');
+      toast.warning('Por favor ingresá la dirección de entrega.');
       return;
     }
 
     if (carritoItems.length === 0) {
-      alert('Debes agregar al menos un producto o combo al pedido.');
+      toast.warning('Debes agregar al menos un producto o combo al pedido.');
       return;
     }
 
@@ -650,11 +650,11 @@ export default function PedidosDelivery() {
       };
 
       await apiClient.post('/pedidos-delivery', payload);
-      showToast('🛵 Pedido de Delivery creado exitosamente');
+      showToast('Pedido de Delivery creado exitosamente');
       setIsModalNuevoOpen(false);
       cargarDatosDelivery();
     } catch (err) {
-      alert(err.response?.data?.mensaje || 'Error al crear el pedido de delivery');
+      toast.error(err.response?.data?.mensaje || 'Error al crear el pedido de delivery');
     }
   };
 
@@ -800,14 +800,6 @@ export default function PedidosDelivery() {
 
   return (
     <div className="space-y-6 font-body text-aleman-negro">
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed top-20 right-6 z-50 bg-aleman-verde text-aleman-hueso text-sm font-semibold px-4 py-2.5 rounded-sm shadow-md flex items-center gap-2 border-2 border-aleman-dorado animate-bounce">
-          <span>🛵</span>
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
       {/* ========================================================= */}
       {/* ENCABEZADO Y ACCIÓN NUEVO PEDIDO */}
       {/* ========================================================= */}

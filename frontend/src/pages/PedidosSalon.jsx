@@ -1,5 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useAuth } from '../context/useAuth';
+import { useConfirm } from '../context/ConfirmContext';
+import { useToast } from '../context/ToastContext';
 import apiClient from '../services/apiClient';
 import ModalPreviaImpresion from '../components/ModalPreviaImpresion';
 import {
@@ -219,12 +221,12 @@ export default function PedidosSalon() {
   const [modalEliminarItem, setModalEliminarItem] = useState(null);
   const [, setHistorialModificaciones] = useState([]);
 
-  // Notificación tipo toast / feedback
-  const [toastMessage, setToastMessage] = useState(null);
+  // Contextos de confirmación y toast
+  const { confirmar } = useConfirm();
+  const { toast } = useToast();
 
   const showToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
+    toast.info(msg);
   };
 
   // Carga inicial de backend (Sectores, Mesas, Productos, Pedidos de Salón Activos)
@@ -419,7 +421,7 @@ export default function PedidosSalon() {
           })
         )
       );
-      showToast('🧹 Mesas reacomodadas y guardadas correctamente');
+      showToast('Mesas reacomodadas y guardadas correctamente');
     } catch {
       showToast('Error al guardar el reacomodamiento en el servidor');
     }
@@ -546,14 +548,14 @@ export default function PedidosSalon() {
     if (crearSectorMesa === '__nuevo__') {
       const nombreLimpio = crearSectorNuevo.trim();
       if (!nombreLimpio) {
-        alert('Por favor ingresá o seleccioná un sector para las mesas.');
+        toast.warning('Por favor ingresá o seleccioná un sector para las mesas.');
         return;
       }
       try {
         const resSec = await apiClient.post('/sectores', { nombre: nombreLimpio });
         sectorIdEncontrado = resSec.data?.sector?._id;
       } catch (err) {
-        alert(err.response?.data?.mensaje || 'Error al crear el nuevo sector');
+        toast.error(err.response?.data?.mensaje || 'Error al crear el nuevo sector');
         return;
       }
     } else {
@@ -562,7 +564,7 @@ export default function PedidosSalon() {
     }
 
     if (!sectorIdEncontrado) {
-      alert('Por favor seleccioná un sector válido para las mesas.');
+      toast.warning('Por favor seleccioná un sector válido para las mesas.');
       return;
     }
 
@@ -577,7 +579,7 @@ export default function PedidosSalon() {
       showToast(`Se crearon ${cantidad} mesas en el sector`);
       cargarDatosIniciales();
     } catch (err) {
-      alert(err.response?.data?.mensaje || 'Error al crear mesas en lote');
+      toast.error(err.response?.data?.mensaje || 'Error al crear mesas en lote');
     }
   };
 
@@ -598,7 +600,7 @@ export default function PedidosSalon() {
 
     const nuevoNum = Number(editNumeroMesa);
     if (!nuevoNum || nuevoNum <= 0) {
-      alert('Por favor ingresá un número de mesa válido mayor a 0.');
+      toast.warning('Por favor ingresá un número de mesa válido mayor a 0.');
       return;
     }
 
@@ -606,14 +608,14 @@ export default function PedidosSalon() {
     if (editSectorMesa === '__nuevo__') {
       const nombreLimpio = editSectorNuevo.trim();
       if (!nombreLimpio) {
-        alert('Por favor ingresá o seleccioná un sector para la mesa.');
+        toast.warning('Por favor ingresá o seleccioná un sector para la mesa.');
         return;
       }
       try {
         const resSec = await apiClient.post('/sectores', { nombre: nombreLimpio });
         sectorIdEncontrado = resSec.data?.sector?._id;
       } catch (err) {
-        alert(err.response?.data?.mensaje || 'Error al crear sector');
+        toast.error(err.response?.data?.mensaje || 'Error al crear sector');
         return;
       }
     } else {
@@ -632,7 +634,7 @@ export default function PedidosSalon() {
       showToast(`Mesa #${nuevoNum} actualizada con éxito`);
       cargarDatosIniciales();
     } catch (err) {
-      alert(err.response?.data?.mensaje || 'Error al editar la mesa');
+      toast.error(err.response?.data?.mensaje || 'Error al editar la mesa');
     }
   };
 
@@ -642,15 +644,18 @@ export default function PedidosSalon() {
     if (!esDueno) return;
 
     if (mesa.estado !== 'libre') {
-      alert(`No se puede eliminar la Mesa ${mesa.numero} porque está Ocupada.`);
+      toast.warning(`No se puede eliminar la Mesa ${mesa.numero} porque está Ocupada.`);
       return;
     }
 
-    if (
-      window.confirm(
-        `¿Seguro que deseas eliminar la Mesa ${mesa.numero}? Esta acción no se puede deshacer.`
-      )
-    ) {
+    const ok = await confirmar({
+      titulo: 'Eliminar Mesa',
+      mensaje: `¿Eliminar la Mesa ${mesa.numero}? Esta acción no se puede deshacer.`,
+      variante: 'peligro',
+      textoConfirmar: 'Eliminar',
+    });
+
+    if (ok) {
       try {
         const mesaId = mesa._id || mesa.id;
         await apiClient.delete(`/mesas/${mesaId}`);
@@ -660,7 +665,7 @@ export default function PedidosSalon() {
         showToast(`Mesa ${mesa.numero} eliminada del salón`);
         cargarDatosIniciales();
       } catch (err) {
-        alert(err.response?.data?.mensaje || `Error al eliminar la Mesa ${mesa.numero}`);
+        toast.error(err.response?.data?.mensaje || `Error al eliminar la Mesa ${mesa.numero}`);
       }
     }
   };
@@ -716,7 +721,7 @@ export default function PedidosSalon() {
       showToast(`Sector "${nombreViejo}" renombrado a "${nombreLimpio}"`);
       cargarDatosIniciales();
     } catch (err) {
-      alert(err.response?.data?.mensaje || 'Error al renombrar el sector');
+      toast.error(err.response?.data?.mensaje || 'Error al renombrar el sector');
     }
   };
 
@@ -747,14 +752,14 @@ export default function PedidosSalon() {
       showToast(`Sector "${sector}" eliminado con éxito`);
       cargarDatosIniciales();
     } catch (err) {
-      alert(err.response?.data?.mensaje || `Error al eliminar el sector '${sector}'`);
+      toast.error(err.response?.data?.mensaje || `Error al eliminar el sector '${sector}'`);
     }
   };
 
   // Reasignar mesas de un sector a otro sector destino
   const handleSoloReasignarMesas = async (sectorOrigen, sectorDestino) => {
     if (!sectorDestino || sectorDestino === sectorOrigen) {
-      alert('Por favor seleccioná un sector de destino válido.');
+      toast.warning('Por favor seleccioná un sector de destino válido.');
       return;
     }
 
@@ -772,14 +777,14 @@ export default function PedidosSalon() {
       showToast(`Se reasignaron ${mesasAMover.length} mesa(s) a "${sectorDestino}".`);
       cargarDatosIniciales();
     } catch (err) {
-      alert(err.response?.data?.mensaje || 'Error al reasignar mesas');
+      toast.error(err.response?.data?.mensaje || 'Error al reasignar mesas');
     }
   };
 
   // Reasignar mesas de un sector a otro sector destino Y eliminar el sector origen
   const handleReasignarYEliminarSector = async (sectorOrigen, sectorDestino) => {
     if (!sectorDestino || sectorDestino === sectorOrigen) {
-      alert('Por favor seleccioná un sector de destino válido.');
+      toast.warning('Por favor seleccioná un sector de destino válido.');
       return;
     }
 
@@ -802,7 +807,7 @@ export default function PedidosSalon() {
       showToast(`Se reasignaron ${mesasAMover.length} mesa(s) a "${sectorDestino}" y se eliminó "${sectorOrigen}"`);
       cargarDatosIniciales();
     } catch (err) {
-      alert(err.response?.data?.mensaje || 'Error al reasignar mesas y eliminar sector');
+      toast.error(err.response?.data?.mensaje || 'Error al reasignar mesas y eliminar sector');
     }
   };
 
@@ -818,7 +823,7 @@ export default function PedidosSalon() {
       showToast(`Nuevo sector "${nombreLimpio}" creado`);
       cargarDatosIniciales();
     } catch (err) {
-      alert(err.response?.data?.mensaje || 'Error al crear el sector');
+      toast.error(err.response?.data?.mensaje || 'Error al crear el sector');
     }
   };
 
@@ -850,7 +855,7 @@ export default function PedidosSalon() {
       mockProductos.find((p) => p.id === itemIdSeleccionado);
 
     if (!prodEncontrado) {
-      alert('Por favor seleccioná un producto o promoción válido.');
+      toast.warning('Por favor seleccioná un producto o promoción válido.');
       return;
     }
 
@@ -991,7 +996,7 @@ export default function PedidosSalon() {
       );
 
       setModalEditarItem(null);
-      showToast(`✏️ Ítem "${item.nombre}" actualizado.`);
+      showToast(`Ítem "${item.nombre}" actualizado.`);
     } catch (err) {
       const mensajeError = err.response?.data?.mensaje || 'Error al editar ítem';
       setModalEditarItem((prev) => ({ ...prev, errorMotivo: mensajeError }));
@@ -1044,7 +1049,7 @@ export default function PedidosSalon() {
       );
 
       setModalEliminarItem(null);
-      showToast(`🗑️ Ítem "${item.nombre}" eliminado.`);
+      showToast(`Ítem "${item.nombre}" eliminado.`);
     } catch (err) {
       const mensajeError = err.response?.data?.mensaje || 'Error al eliminar ítem';
       setModalEliminarItem((prev) => ({ ...prev, errorMotivo: mensajeError }));
@@ -1061,7 +1066,7 @@ export default function PedidosSalon() {
 
     const itemsPorEnviar = (mesaActual.pedido || []).filter((it) => !it.enviadoACocina);
     if (itemsPorEnviar.length === 0) {
-      alert('No hay nuevos ítems pendientes de envío en esta mesa.');
+      toast.info('No hay nuevos ítems pendientes de envío en esta mesa.');
       return;
     }
 
@@ -1070,7 +1075,7 @@ export default function PedidosSalon() {
       const { itemsEnviados, itemsParaCocina, pedido: pedidoRes } = res.data;
 
       showToast(
-        `👨‍🍳 Comanda enviada a cocina (${itemsEnviados?.length || itemsPorEnviar.length} ítems en total)`
+        `Comanda enviada a cocina (${itemsEnviados?.length || itemsPorEnviar.length} ítems en total)`
       );
 
       const pedidoActual = pedidoRes || (await apiClient.get(`/pedidos-salon/mesa/${mesaActual._id || mesaActual.id}`)).data?.pedido;
@@ -1163,14 +1168,14 @@ export default function PedidosSalon() {
     );
 
     if (itemsSinEnviar.length > 0) {
-      alert(
+      toast.warning(
         'No podés cerrar la mesa porque hay ítems en el carrito sin enviar a cocina. Envialos o quitalos primero.'
       );
       return;
     }
 
     if (itemsNoEntregados.length > 0) {
-      alert(
+      toast.warning(
         'Todos los ítems enviados a cocina deben estar en estado "Entregado" antes de poder cerrar la mesa.'
       );
       return;
@@ -1216,10 +1221,9 @@ export default function PedidosSalon() {
       });
     } catch (err) {
       if (err.response?.status === 409) {
-        showToast('⚠️ No hay un turno de caja abierto');
-        alert('⚠️ No hay un turno de caja abierto.\n\nPor favor, ingresá al módulo de Caja y abrí un turno antes de cobrar el pedido.');
+        toast.warning('No hay un turno de caja abierto.\n\nPor favor, ingresá al módulo de Caja y abrí un turno antes de cobrar el pedido.');
       } else {
-        showToast(err.response?.data?.mensaje || 'Error al cerrar y cobrar la mesa');
+        toast.error(err.response?.data?.mensaje || 'Error al cerrar y cobrar la mesa');
       }
       return;
     }
@@ -1228,7 +1232,7 @@ export default function PedidosSalon() {
     const montoTotalConfirmado = res.data?.montoTotal ?? total ?? 0;
     const medioPagoConfirmado = res.data?.medioPago || medioPago;
 
-    showToast(`💰 Mesa ${numMesa} cobrada con ${medioPagoConfirmado} ($${montoTotalConfirmado}) y liberada con éxito`);
+    showToast(`Mesa ${numMesa} cobrada con ${medioPagoConfirmado} ($${montoTotalConfirmado}) y liberada con éxito`);
 
     // 3. Pasos secundarios (actualización de UI, vista previa e impresión) en try/catch independiente
     try {
@@ -1438,14 +1442,6 @@ export default function PedidosSalon() {
 
   return (
     <div className="space-y-4 font-body text-aleman-negro">
-      {/* Toast de notificación rápida */}
-      {toastMessage && (
-        <div className="fixed top-20 right-6 z-50 bg-aleman-verde text-aleman-hueso text-sm font-semibold px-4 py-2.5 rounded-sm shadow-md flex items-center gap-2 border-2 border-aleman-dorado animate-bounce">
-          <span>✨</span>
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
       {/* ========================================================= */}
       {/* ENCABEZADO Y ACCIONES PRINCIPALES */}
       {/* ========================================================= */}
@@ -1689,7 +1685,7 @@ export default function PedidosSalon() {
                     showToast('Distribución de mesas guardada');
                   } else {
                     if (typeof window !== 'undefined' && window.innerWidth < 768) {
-                      showToast('💡 La edición de distribución (arrastrar mesas) se recomienda en computadoras o tablets.');
+                      showToast('La edición de distribución (arrastrar mesas) se recomienda en computadoras o tablets.');
                     }
                     setModoEdicion(true);
                   }

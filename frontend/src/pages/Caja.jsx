@@ -75,7 +75,7 @@ export default function Caja() {
       }
     } catch (err) {
       console.error('Error al cargar turno actual:', err);
-      showToast('❌ Error al conectar con la API de Caja');
+      toast.error('Error al conectar con la API de Caja');
     } finally {
       setLoading(false);
     }
@@ -135,7 +135,7 @@ export default function Caja() {
       await apiClient.post('/caja/turnos/abrir', { montoInicial: monto });
       await cargarTurnoActual();
       if (esDueno) cargarDesglose();
-      showToast(`🔓 Turno de caja abierto con un fondo de ${formatCurrency(monto)}`);
+      showToast(`Turno de caja abierto con un fondo de ${formatCurrency(monto)}`);
     } catch (err) {
       const msg = err.response?.data?.mensaje || 'Error al abrir el turno de caja';
       toast.error(msg);
@@ -172,10 +172,10 @@ export default function Caja() {
 
       await cargarTurnoActual();
       setIsModalEgresoOpen(false);
-      showToast(`💸 Egreso manual de ${formatCurrency(montoNum)} registrado`);
+      showToast(`Egreso manual de ${formatCurrency(montoNum)} registrado`);
     } catch (err) {
       if (err.response?.status === 409) {
-        toast.warning('⚠️ No hay un turno de caja abierto.');
+        toast.warning('No hay un turno de caja abierto.');
       } else {
         toast.error(err.response?.data?.mensaje || 'Error al registrar egreso manual');
       }
@@ -214,7 +214,7 @@ export default function Caja() {
         mensajeDiferencia = `Caja cerrada con faltante de ${formatCurrency(Math.abs(diff))}`;
       }
 
-      showToast(`🔒 ${mensajeDiferencia}`);
+      showToast(mensajeDiferencia);
       await cargarTurnoActual();
       if (esDueno) {
         cargarHistorialTurnos();
