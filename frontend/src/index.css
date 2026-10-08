@@ -74,62 +74,31 @@ body {
 }
 
 /* ========================================================= */
-/* ANIMACIONES SISTEMA DE TOASTS EL ALEMÁN */
+/* ANIMACIÓN SISTEMA DE TOASTS EL ALEMÁN */
 /* ========================================================= */
-@keyframes toastSlideIn {
-  from {
+@keyframes toastPopIn {
+  0% {
     opacity: 0;
-    transform: translateY(-8px) scale(0.97);
+    transform: translateY(-8px) scale(0.96);
   }
-  to {
+  70% {
+    opacity: 1;
+    transform: translateY(2px) scale(1.02);
+  }
+  100% {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
 }
 
-@keyframes toastProgressBar {
-  from {
-    width: 100%;
-  }
-  to {
-    width: 0%;
-  }
-}
-
-.toast-enter-anim {
-  animation: toastSlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.toast-progress-anim {
-  animation-name: toastProgressBar;
-  animation-timing-function: linear;
-  animation-fill-mode: forwards;
-}
-
-@media (min-width: 640px) {
-  @keyframes toastSlideInDesktop {
-    from {
-      opacity: 0;
-      transform: translateX(20px) scale(0.97);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0) scale(1);
-    }
-  }
-
-  .toast-enter-anim {
-    animation: toastSlideInDesktop 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
+.toast-pop-in {
+  animation: toastPopIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .toast-enter-anim {
+  .toast-pop-in {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
-  }
-  .toast-progress-anim {
-    display: none !important;
   }
 }
